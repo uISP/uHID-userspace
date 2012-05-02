@@ -1,4 +1,7 @@
 # Name: Makefile
+# Project: uISP
+# Author: Andrew 'Necromant' Andrianov
+# Based on: (below)
 # Project: Automator
 # Author: Christian Starkjohann
 # Creation Date: 2006-02-01
@@ -27,6 +30,9 @@ LIBS=			$(USBLIBS)
 ARCH_COMPILE=	
 ARCH_LINK=		
 
+DESTDIR=
+PREFIX=/usr/local
+
 OBJ=		main.o usbcalls.o
 PROGRAM=	uisptool$(EXE_SUFFIX)
 
@@ -34,6 +40,10 @@ all: $(PROGRAM)
 
 $(PROGRAM): $(OBJ)
 	$(CC) $(ARCH_LINK) $(CFLAGS) -o $(PROGRAM) $(OBJ) $(LIBS)
+
+install: strip
+	install uisptool $(DESTDIR)/$(PREFIX)/bin/
+	install uappmgr $(DESTDIR)/$(PREFIX)/bin/ 
 
 
 strip: $(PROGRAM)
