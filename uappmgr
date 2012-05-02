@@ -1,0 +1,50 @@
+#!/bin/bash
+APPDIR=~/.uispapps
+APPURL=git://github.com/nekromant/uisp-repo.git
+
+usage()
+{
+cat <<EOF
+To upload an app just run uappmgr with extra uisptool options if any
+To update the repository run "uappmgr update"
+For more info see documentation
+EOF
+}
+
+
+
+die()
+{
+	echo "$*"
+	exit 1
+}
+
+echo "uISP Tool Q&D Application Manager/updater"
+echo "(c) Necromant 2012 :: ncrmnt.org"
+
+if [ "$1" == "--help" ]; then
+die "`usage`"
+fi
+
+if [ "$1" == "update" ]; then
+mkdir -p $APPDIR
+cd $APPDIR
+[ -d .git ] && git pull
+[ -d .git ] || git clone $APPURL $APPDIR
+echo "Update complete"
+exit 0
+fi
+
+uisptool $* -i || die "Dongle not detected"
+echo "Pick an app to download"
+select app in `ls $APPDIR` run; do
+	if [ "$app" == "run" ]; then
+	uisptool $* -r
+	exit
+	fi 
+	echo "Will now download $app"
+	INFO=`cat $APPDIR/$app/info` 
+	uisptool $* -u $INFO -f $APPDIR/$app/fw.hex || die "Something gone bad"
+	uisptool $* -i || die "Dongle not detected, (Okay if we started the code)"
+	exit
+done
