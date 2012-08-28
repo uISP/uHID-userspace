@@ -1,6 +1,6 @@
 #!/bin/bash
 APPDIR=~/.uispapps
-APPURL=git://github.com/nekromant/uisp-repo.git
+APPURL=git://github.com/uISP/uisp-userspace.git
 
 usage()
 {
