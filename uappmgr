@@ -45,6 +45,9 @@ select app in `ls $APPDIR` run; do
 	echo "Will now download $app"
 	INFO=`cat $APPDIR/$app/info` 
 	uisptool $* -u $INFO -f $APPDIR/$app/fw.hex || die "Something gone bad"
-	uisptool $* -i || die "Dongle not detected, (Okay if we started the code)"
+	uisptool $* -i  || die "Dongle not detected, (Okay if we started the code)"
+	#actually run the code	
+	uisptool $* -r 
+	
 	exit
 done
