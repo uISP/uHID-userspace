@@ -297,7 +297,7 @@ static int dump_device_info(char* serial)
     if (dtest.magic!=_MMAGIC) {
         printf("No valid magic found. Virgin device? \n");
         printf("A valid info struct will be written once we load an app for the first time\n");
-        return 1;
+        return 0;
     } else {
         float health = 100.0-((float) 100.0/ENDURANCE ) * dtest.rwcnt;
         printf("Device health:\t%f%% (%d/%d)\n", health, dtest.rwcnt, ENDURANCE);
