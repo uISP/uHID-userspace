@@ -1,5 +1,22 @@
+Abstract
+--------
 This is mostly based on BootloadHID code. 
-Hazardous code inside, many things are ugly hacks. 
+Hazardous code inside, many things are REALLY ugly hacks.
+Sorry for that, I've been in a hurry.  
+
+Installation
+------------
+Slackware style: 
+   make && sudo make install
+
+For debian/ubuntu:
+   make deb
+
+For Arch Linux you can grab it from aur:
+   yaourt -S uisp-userspace
+
+Known Bugs
+----------
 Windows version is totally broken, until I have time to 
 get myself a windows PC and do it properly. You're free to send 
-patches
+patches.

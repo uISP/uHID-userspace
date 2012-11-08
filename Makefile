@@ -32,6 +32,7 @@ ARCH_LINK=
 
 DESTDIR=
 PREFIX=/usr/local
+PREFIXRULE=/lib/udev/rules.d
 
 OBJ=		main.o usbcalls.o
 PROGRAM=	uisptool$(EXE_SUFFIX)
@@ -41,10 +42,13 @@ all: $(PROGRAM)
 $(PROGRAM): $(OBJ)
 	$(CC) $(ARCH_LINK) $(CFLAGS) -o $(PROGRAM) $(OBJ) $(LIBS)
 
-install: strip
+install: strip 10-uisp.rules
 	install uisptool $(DESTDIR)/$(PREFIX)/bin/
 	install uappmgr $(DESTDIR)/$(PREFIX)/bin/ 
+	install 10-uisp.rules $(DESTDIR)/$(PREFIXRULE)/
 
+deb:
+	sudo checkinstall
 
 strip: $(PROGRAM)
 	strip $(PROGRAM)
