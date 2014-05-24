@@ -116,7 +116,7 @@ int usbOpenDevice(usbDevice_t **device, int vendor, char *vendorName, int produc
                                         fprintf(stderr, "Warning: cannot query serial number for device: %s\n", usb_strerror());
                                     } else {
                                         errorCode = USB_ERROR_NOTFOUND;
-										printf("Serial Number:\t%s \n", string);
+					fprintf(stderr, "Serial Number:\t%s \n", string);
                                         /* fprintf(stderr, "seen device from vendor ->%s<-\n", string); */
                                           if ((_usesReportIDs!=2) && serial)
                                             if(strcmp(string, serial) == 0)

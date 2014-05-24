@@ -36,6 +36,8 @@ exit 0
 fi
 
 uisptool $* -i || die "Dongle not detected"
+F_CPU=`uisptool -c -i`
+
 echo "Pick an app to download"
 select app in `ls $APPDIR` run; do
 	if [ "$app" == "run" ]; then
@@ -44,7 +46,7 @@ select app in `ls $APPDIR` run; do
 	fi 
 	echo "Will now download $app"
 	INFO=`cat $APPDIR/$app/info` 
-	uisptool $* -u $INFO -f $APPDIR/$app/fw.hex || die "Something gone bad"
+	uisptool $* -u $INFO -f $APPDIR/$app/fw-${F_CPU}.hex || die "Something gone bad"
 	uisptool $* -i  || die "Dongle not detected, (Okay if we started the code)"
 	#actually run the code	
 	uisptool $* -r 
