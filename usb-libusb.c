@@ -35,13 +35,12 @@ devices differ in report ID usage, you must change the code.
 #define USBRQ_HID_GET_REPORT    0x01
 #define USBRQ_HID_SET_REPORT    0x09
 
-static int  usesReportIDs;
 
 /* ------------------------------------------------------------------------- */
 
 static int  usbGetStringAscii(usb_dev_handle *dev, int index, int langid, char *buf, int buflen)
 {
-    char    buffer[256];
+    char    buffer[255];
     int     rval, i;
 
     if((rval = usb_control_msg(dev, USB_ENDPOINT_IN, USB_REQ_GET_DESCRIPTOR, (USB_DT_STRING << 8) + index, langid, buffer, sizeof(buffer), 1000)) < 0)
@@ -64,7 +63,7 @@ static int  usbGetStringAscii(usb_dev_handle *dev, int index, int langid, char *
 }
 
 
-int usbOpenDevice(usbDevice_t **device, int vendor, char *vendorName, int product, char *productName, char *serial, int _usesReportIDs)
+int usbOpenDevice(usbDevice_t **device, int vendor, char *vendorName, int product, char *productName, char *serial)
 {
     struct usb_bus      *bus;
     struct usb_device   *dev;
@@ -99,7 +98,7 @@ int usbOpenDevice(usbDevice_t **device, int vendor, char *vendorName, int produc
                     fprintf(stderr, "Warning: cannot query manufacturer for device: %s\n", usb_strerror());
                 } else {
                     errorCode = USB_ERROR_NOTFOUND;
-                    /* fprintf(stderr, "seen device from vendor ->%s<-\n", string); */
+                     fprintf(stderr, "seen device from vendor ->%s<-\n", string);
                     if(strcmp(string, vendorName) == 0) {
                         len = usbGetStringAscii(handle, dev->descriptor.iProduct, 0x0409, string, sizeof(string));
                         if(len < 0) {
@@ -118,8 +117,7 @@ int usbOpenDevice(usbDevice_t **device, int vendor, char *vendorName, int produc
                                         errorCode = USB_ERROR_NOTFOUND;
 					fprintf(stderr, "Serial Number:\t%s \n", string);
                                         /* fprintf(stderr, "seen device from vendor ->%s<-\n", string); */
-                                          if ((_usesReportIDs!=2) && serial)
-                                            if(strcmp(string, serial) == 0)
+                                            if(serial && strcmp(string, serial) == 0)
                                                 break;
                                        
                                     }
@@ -160,7 +158,6 @@ int usbOpenDevice(usbDevice_t **device, int vendor, char *vendorName, int produc
          */
         errorCode = 0;
         *device = handle;
-        usesReportIDs = _usesReportIDs;
     }
     return errorCode;
 }
@@ -175,15 +172,11 @@ void    usbCloseDevice(usbDevice_t *device)
 
 /* ------------------------------------------------------------------------- */
 
-int usbSetReport(usbDevice_t *device, int reportType, char *buffer, int len)
+int usbSetReport(usbDevice_t *device, int reportType, int reportNumber, char *buffer, int len)
 {
     int bytesSent;
 
-    if(!usesReportIDs) {
-        buffer++;   /* skip dummy report ID */
-        len--;
-    }
-    bytesSent = usb_control_msg(device, USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_ENDPOINT_OUT, USBRQ_HID_SET_REPORT, reportType << 8 | buffer[0], 0, buffer, len, 5000);
+    bytesSent = usb_control_msg(device, USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_ENDPOINT_OUT, USBRQ_HID_SET_REPORT, reportType << 8 | reportNumber, 0, buffer, len, 5000);
     if(bytesSent != len) {
         if(bytesSent < 0)
             fprintf(stderr, "Error sending message: %s\n", usb_strerror());
@@ -198,23 +191,26 @@ int usbGetReport(usbDevice_t *device, int reportType, int reportNumber, char *bu
 {
     int bytesReceived, maxLen = *len;
 
-    if(!usesReportIDs) {
-        buffer++;   /* make room for dummy report ID */
-        maxLen--;
-    }
-    bytesReceived = usb_control_msg(device, USB_TYPE_CLASS | USB_RECIP_INTERFACE | USB_ENDPOINT_IN, USBRQ_HID_GET_REPORT, reportType << 8 | reportNumber, 0, buffer, maxLen, 5000);
+    bytesReceived = usb_control_msg(device, USB_TYPE_CLASS  | USB_ENDPOINT_IN, USBRQ_HID_GET_REPORT, 
+				    reportType << 8 | reportNumber, 0, buffer, maxLen, 5000);
     if(bytesReceived < 0) {
         fprintf(stderr, "Error sending message: %s\n", usb_strerror());
         return USB_ERROR_IO;
     }
+
     *len = bytesReceived;
-    if(!usesReportIDs) {
-        buffer[-1] = reportNumber;  /* add dummy report ID */
-        *len++;
-    }
+
     return 0;
 }
 
 /* ------------------------------------------------------------------------- */
 
 
+char *usbGetDevSerial(usbDevice_t *dev)
+{
+	int len; 
+	char string[255];
+//	usbGetStringAscii(dev, dev->descriptor.iSerialNumber, 
+//			  0x0409, string, sizeof(string));
+	return strdup(string);
+}

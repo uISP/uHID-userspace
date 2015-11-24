@@ -23,7 +23,7 @@ EXE_SUFFIX=
 #USBLIBS=    -lhid -lusb -lsetupapi
 #EXE_SUFFIX= .exe
 
-CC=				gcc -g
+CC=				clang -g
 CXX=			g++
 CFLAGS=			-O2 -Wall $(USBFLAGS)
 LIBS=			$(USBLIBS)

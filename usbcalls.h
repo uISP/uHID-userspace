@@ -43,7 +43,7 @@ typedef struct usbDevice    usbDevice_t;
 
 /* ------------------------------------------------------------------------ */
 
-int usbOpenDevice(usbDevice_t **device, int vendor, char *vendorName, int product, char *productName, char* serial, int usesReportIDs);
+int usbOpenDevice(usbDevice_t **device, int vendor, char *vendorName, int product, char *productName, char* serial);
 /* This function opens a USB device. 'vendor' and 'product' are the numeric
  * Vendor-ID and Product-ID of the device we want to open. If 'vendorName' and
  * 'productName' are both not NULL, only devices with matching manufacturer-
@@ -57,7 +57,7 @@ int usbOpenDevice(usbDevice_t **device, int vendor, char *vendorName, int produc
 void    usbCloseDevice(usbDevice_t *device);
 /* Every device opened with usbOpenDevice() must be closed with this function.
  */
-int usbSetReport(usbDevice_t *device, int reportType, char *buffer, int len);
+int usbSetReport(usbDevice_t *device, int reportType, int reportNumber, char *buffer, int len);
 /* This function sends a report to the device. 'reportType' specifies the type
  * of report (see USB_HID_REPORT_TYPE* constants). The report ID must be in the
  * first byte of buffer and the length 'len' of the report is specified
