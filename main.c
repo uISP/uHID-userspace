@@ -15,10 +15,10 @@
 #include <errno.h>
 #include "usbcalls.h"
 
-#define IDENT_VENDOR_NUM        0x16c0
-#define IDENT_VENDOR_STRING     "www.ncrmnt.org"
-#define IDENT_PRODUCT_NUM       1503
-#define IDENT_PRODUCT_STRING    "uHID"
+#define IDENT_VENDOR_NUM        0x1d50
+#define IDENT_PRODUCT_NUM       0x6032
+#define IDENT_VENDOR_STRING     "uHID"
+
 #define min_t(type, a, b) (((type)(a)<(type)(b))?(type)(a):(type)(b))
 
 
@@ -110,10 +110,8 @@ char    *usbErrorMessage(int errCode)
 
 
 #define UISP_PART_NAME_LEN  8
-#define UISP_CHIP_NAME_LEN 16
 
 struct partInfo {
-	uint8_t       id;
 	uint16_t      pageSize;
 	uint32_t      size;
 	uint8_t       ioSize;
@@ -122,7 +120,6 @@ struct partInfo {
 
 struct deviceInfo {
 	uint8_t       reportId;
-	uint8_t       name[UISP_CHIP_NAME_LEN];
 	uint8_t       numParts;
 	uint8_t       cpuFreq;
 	struct partInfo parts[];
@@ -155,8 +152,6 @@ struct deviceInfo *uispReadInfo(usbDevice_t *dev)
 		exit(1);
 	}
 
-
-	inf->name[UISP_CHIP_NAME_LEN - 1] = 0x0;
 	for (i=0; i<inf->numParts; i++) { 
 		inf->parts[i].name[UISP_PART_NAME_LEN -1] = 0;
 	}
@@ -178,13 +173,13 @@ error:
  * @return 
  */
 
-usbDevice_t *uispOpen(const char *serial)
+usbDevice_t *uispOpen(const char *devId, const char *serial)
 {
 	usbDevice_t *dev = NULL;
 	int err;
 	if((err = usbOpenDevice(&dev, 
 				IDENT_VENDOR_NUM, IDENT_VENDOR_STRING, 
-				IDENT_PRODUCT_NUM, IDENT_PRODUCT_STRING, 
+				IDENT_PRODUCT_NUM, devId, 
 				serial)) != 0) {
 		fprintf(stderr, "Error opening uHID device: %s\n", usbErrorMessage(err));
 	}
@@ -213,7 +208,7 @@ char *uispReadPart(usbDevice_t *dev, int part, int *bytes_read)
 	if (part > inf->numParts) 
 		return NULL;
 	
-	uint32_t size = inf->parts[i-1].size;
+	uint32_t size = inf->parts[part-1].size;
 	char *tmp = malloc(size);
 	if (!tmp)
 		goto errfreeinf;
@@ -252,7 +247,7 @@ int uispWritePart(usbDevice_t *dev, int part, const char *buf, int length)
 	if (part > inf->numParts) 
 		return -ENOENT;
 	
-	uint32_t size = inf->parts[i-1].size;
+	uint32_t size = inf->parts[part-1].size;
 	int pos = 0;
 	while (pos < size) { 
 		int len = min_t(int, size - pos, inf->parts[part-1].ioSize);
@@ -262,8 +257,7 @@ int uispWritePart(usbDevice_t *dev, int part, const char *buf, int length)
 			break;
 		}
 		pos+=len;
-		printf(".");
-		fflush(stdout);
+		printf("write %d/%d\n", pos, size);
 	}
 	free(inf);
 	return ret;		
@@ -300,36 +294,50 @@ void uispPrintInfo(struct deviceInfo *inf)
 
 int main(int argc, char **argv)
 {
-
 	int err;
 	int ret = 0;
 
-	usbDevice_t *uisp = uispOpen(NULL);
+	usbDevice_t *uisp = uispOpen(NULL, NULL);
 	if (!uisp)
 		exit(1);
 
 	struct deviceInfo *inf = uispReadInfo(uisp);
 	uispPrintInfo(inf);
-	
-	printf("WRITE\n");
 	char *tmp = malloc(8192*1024);
-	FILE *fd = fopen("f.bin", "r");
-	err = fread(tmp, 1, inf->parts[0].size, fd);
-	fclose(fd);
-	uispWritePart(uisp, 1, tmp, err);
+	FILE *fd; 
+	int part = 1; 
+	int len;
 
-	printf("READ\n");
-	tmp = uispReadPart(uisp, 1, NULL);
+
+	printf("WRITE: %d \n", inf->parts[part-1].size);
+	fd = fopen(argv[1], "r");
+	err = fread(tmp, 1, inf->parts[part-1].size, fd);
+	fclose(fd);
+	uispWritePart(uisp, part, tmp, err);
+	printf("WROTE %d bytes %x %x %x \n", err, tmp[0], tmp[1], tmp[2]);
+
+	printf("READ %d bytes\n", inf->parts[part-1].size);
+	tmp = uispReadPart(uisp, part, &len);
 	fd = fopen("dump.bin", "w+");
-	fwrite(tmp, 1, inf->parts[0].size, fd);
+	fwrite(tmp, 1, len, fd);
 	fclose(fd);
 	free(tmp);
 
+	printf("READ %d bytes\n", inf->parts[part-1].size);
+	tmp = uispReadPart(uisp, part, &len);
+	fd = fopen("dump2.bin", "w+");
+	fwrite(tmp, 1, len, fd);
+	fclose(fd);
+	free(tmp);
+
+	printf("%d bytes read\n", len);
+
 	printf("EXEC!\n");
 	uispCloseAndRun(uisp, 1);
+
 errorOccurred:
 	free(inf);
-	uispClose(uisp);
+//	uispClose(uisp);
 	return ret;
 }
 

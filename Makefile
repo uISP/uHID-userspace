@@ -25,7 +25,7 @@ EXE_SUFFIX=
 
 CC=				clang -g
 CXX=			g++
-CFLAGS=			-O2 -Wall $(USBFLAGS)
+CFLAGS=			-O2 -Wall $(USBFLAGS) -g
 LIBS=			$(USBLIBS)
 ARCH_COMPILE=	
 ARCH_LINK=		
