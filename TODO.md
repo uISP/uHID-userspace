@@ -14,9 +14,9 @@ Medium Priority:
 см. CMakeLists.txt в http://github.com/nekromant/aura
 
 * Все добавить все необходимое для debian пакетирования
- ** Сделать dh_make -p libuhid_0.1 -n 
- ** Почистить debian/ от мусора и дописать необходимое в control, rules, etc. 
- ** Убедиться что dpkg-buildpackage собирает пачку пакетов, они устанавливаются и dpkg -L выводит ожидаемые файлы на ожидаемых местах
+ - Сделать dh_make -p libuhid_0.1 -n 
+ - Почистить debian/ от мусора и дописать необходимое в control, rules, etc. 
+ - Убедиться что dpkg-buildpackage собирает пачку пакетов, они устанавливаются и dpkg -L выводит ожидаемые файлы на ожидаемых местах
 
 Low Priority: 
 * Подчистить usb-windows и проверить что через mingw собирается
