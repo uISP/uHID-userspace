@@ -42,7 +42,7 @@ static int  usbGetStringAscii(usb_dev_handle *dev, int index, int langid, char *
 {
     char    buffer[255];
     int     rval, i;
-
+    memset(buf, 0, buflen);
     if((rval = usb_control_msg(dev, USB_ENDPOINT_IN, USB_REQ_GET_DESCRIPTOR, (USB_DT_STRING << 8) + index, langid, buffer, sizeof(buffer), 1000)) < 0)
         return rval;
     if(buffer[1] != USB_DT_STRING)
@@ -63,7 +63,7 @@ static int  usbGetStringAscii(usb_dev_handle *dev, int index, int langid, char *
 }
 
 
-int usbOpenDevice(usbDevice_t **device, int vendor, char *vendorName, int product, char *productName, char *serial)
+int usbOpenDevice(usbDevice_t **device, int vendor, const char *vendorName, int product, const char *productName, const char *serial)
 {
     struct usb_bus      *bus;
     struct usb_device   *dev;
@@ -98,7 +98,7 @@ int usbOpenDevice(usbDevice_t **device, int vendor, char *vendorName, int produc
                     fprintf(stderr, "Warning: cannot query manufacturer for device: %s\n", usb_strerror());
                 } else {
                     errorCode = USB_ERROR_NOTFOUND;
-                     fprintf(stderr, "seen device from vendor ->%s<-\n", string);
+		    fprintf(stderr, "seen device from vendor ->%s<-\n", string);
                     if(strcmp(string, vendorName) == 0) {
                         len = usbGetStringAscii(handle, dev->descriptor.iProduct, 0x0409, string, sizeof(string));
                         if(len < 0) {
@@ -106,7 +106,8 @@ int usbOpenDevice(usbDevice_t **device, int vendor, char *vendorName, int produc
                             fprintf(stderr, "Warning: cannot query product for device: %s\n", usb_strerror());
                         } else {
                             errorCode = USB_ERROR_NOTFOUND;
-                            /* fprintf(stderr, "seen product ->%s<-\n", string); */
+			    if (!productName)
+				    break;
                             if(strcmp(string, productName) == 0)
                             {
                                     len = usbGetStringAscii(handle, dev->descriptor.iSerialNumber, 0x0409, string, sizeof(string));
@@ -208,7 +209,6 @@ int usbGetReport(usbDevice_t *device, int reportType, int reportNumber, char *bu
 
 char *usbGetDevSerial(usbDevice_t *dev)
 {
-	int len; 
 	char string[255];
 //	usbGetStringAscii(dev, dev->descriptor.iSerialNumber, 
 //			  0x0409, string, sizeof(string));

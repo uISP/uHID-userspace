@@ -145,8 +145,8 @@ struct deviceInfo *uispReadInfo(usbDevice_t *dev)
 	if ((len < sizeof(struct deviceInfo)) || 
 	    (len < sizeof(struct deviceInfo) + inf->numParts * sizeof(struct partInfo))) {
 		fprintf(stderr, "Short-read on deviceInfo - bad bootloader version?\n");
-		fprintf(stderr,"Expected %d bytes, got %d bytes (%d + %d *%d)\n", 
-				sizeof(struct deviceInfo) + inf->numParts * sizeof(struct partInfo),
+		fprintf(stderr, "Expected %lu bytes, got %d bytes (%lu + %d * %lu)\n", 
+			sizeof(struct deviceInfo) + inf->numParts * sizeof(struct partInfo),
 			len, 
 			sizeof(struct deviceInfo), 2, sizeof(struct partInfo));
 		exit(1);
@@ -199,7 +199,6 @@ usbDevice_t *uispOpen(const char *devId, const char *serial)
  */
 char *uispReadPart(usbDevice_t *dev, int part, int *bytes_read)
 {
-	int i;
 	struct deviceInfo *inf = uispReadInfo(dev);
 	if (!inf)
 		return NULL;
@@ -238,7 +237,7 @@ errfreeinf:
 
 int uispWritePart(usbDevice_t *dev, int part, const char *buf, int length)
 {
-	int i,ret=0;
+	int ret=0;
 	struct deviceInfo *inf = uispReadInfo(dev);
 	if (!inf)
 		return -ENOENT;
@@ -274,7 +273,7 @@ void uispCloseAndRun(usbDevice_t *dev, int part)
 	char tmp[8];	
 	/* This will fail anyway since the device will disconnect */
 	usbSetReport(dev, USB_HID_REPORT_TYPE_FEATURE, 0,
-		     &tmp, 1);
+		     tmp, 1);
 	uispClose(dev);
 }
 
@@ -282,13 +281,12 @@ void uispPrintInfo(struct deviceInfo *inf)
 {
 	int i;
 
-	printf("Chip:              %s\n", inf->name);
 	printf("Partitions:        %d\n", inf->numParts);
 	printf("CPU Frequency:     %.1f Mhz\n", inf->cpuFreq / 10.0);
 	for (i=0; i<inf->numParts; i++) { 
 		struct partInfo *p = &inf->parts[i];
 		printf("%d. %s %d bytes (%d byte pages, %d bytes per packet)  \n", 
-		       p->id, p->name, p->size, p->pageSize, p->ioSize);		
+		       i, p->name, p->size, p->pageSize, p->ioSize);		
 	}
 }
 
@@ -306,16 +304,15 @@ int main(int argc, char **argv)
 	char *tmp = malloc(8192*1024);
 	FILE *fd; 
 	int part = 1; 
-	int len;
-
 
 	printf("WRITE: %d \n", inf->parts[part-1].size);
 	fd = fopen(argv[1], "r");
 	err = fread(tmp, 1, inf->parts[part-1].size, fd);
 	fclose(fd);
 	uispWritePart(uisp, part, tmp, err);
-	printf("WROTE %d bytes %x %x %x \n", err, tmp[0], tmp[1], tmp[2]);
 
+
+/*
 	printf("READ %d bytes\n", inf->parts[part-1].size);
 	tmp = uispReadPart(uisp, part, &len);
 	fd = fopen("dump.bin", "w+");
@@ -331,12 +328,12 @@ int main(int argc, char **argv)
 	free(tmp);
 
 	printf("%d bytes read\n", len);
-
+*/
 	printf("EXEC!\n");
 	uispCloseAndRun(uisp, 1);
 
-errorOccurred:
-	free(inf);
+//errorOccurred:
+//	free(inf);
 //	uispClose(uisp);
 	return ret;
 }
