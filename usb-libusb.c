@@ -98,7 +98,7 @@ int usbOpenDevice(usbDevice_t **device, int vendor, const char *vendorName, int 
                     fprintf(stderr, "Warning: cannot query manufacturer for device: %s\n", usb_strerror());
                 } else {
                     errorCode = USB_ERROR_NOTFOUND;
-		    fprintf(stderr, "seen device from vendor ->%s<-\n", string);
+		    //fprintf(stderr, "seen device from vendor ->%s<-\n", string);
                     if(strcmp(string, vendorName) == 0) {
                         len = usbGetStringAscii(handle, dev->descriptor.iProduct, 0x0409, string, sizeof(string));
                         if(len < 0) {
@@ -116,7 +116,7 @@ int usbOpenDevice(usbDevice_t **device, int vendor, const char *vendorName, int 
                                         fprintf(stderr, "Warning: cannot query serial number for device: %s\n", usb_strerror());
                                     } else {
                                         errorCode = USB_ERROR_NOTFOUND;
-					fprintf(stderr, "Serial Number:\t%s \n", string);
+//					fprintf(stderr, "Serial Number:\t%s \n", string);
                                         /* fprintf(stderr, "seen device from vendor ->%s<-\n", string); */
                                             if(serial && strcmp(string, serial) == 0)
                                                 break;

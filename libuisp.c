@@ -13,18 +13,46 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <errno.h>
-#include "usbcalls.h"
+#include <libuisp.h>
+#include <sys/types.h>
+#include <sys/stat.h>
+#include <unistd.h>
 
-#define IDENT_VENDOR_NUM        0x1d50
-#define IDENT_PRODUCT_NUM       0x6032
-#define IDENT_VENDOR_STRING     "uHID"
+
+static int   IDENT_VENDOR_NUM          =    0x1d50;
+static int   IDENT_PRODUCT_NUM         =    0x6032;
+static char  IDENT_VENDOR_STRING[255]  =    "uHID";
 
 #define min_t(type, a, b) (((type)(a)<(type)(b))?(type)(a):(type)(b))
 
+static void (*progresscb)(const char *label, int cur, int max);
 
-/* ------------------------------------------------------------------------- */
 
-/* ------------------------------------------------------------------------- */
+void uispProgressCb(void (*cb)(char *label, int cur, int max))
+{
+	progresscb = cb;
+}
+
+static void show_progress(const char *label, int cur, int max)
+{
+	if (progresscb)
+		progresscb(label, cur, max);
+}
+
+/** 
+ * Override usb device information
+ * 
+ * @param vendor 
+ * @param product 
+ * @param vstring 
+ */
+void uispOverrideLoaderInfo(int vendor, int product, int vstring)
+{
+	IDENT_VENDOR_NUM = vendor;
+	IDENT_PRODUCT_NUM = product;
+	strncpy(IDENT_VENDOR_STRING, vstring, 255);
+	IDENT_VENDOR_STRING[254] = 0x0;
+}
 
 static int  parseUntilColon(FILE *fp)
 {
@@ -88,7 +116,7 @@ static int  parseIntelHex(char *hexfile, char buffer[65536 + 256], int *startAdd
 
 /* ------------------------------------------------------------------------- */
 
-char    *usbErrorMessage(int errCode)
+static char    *usbErrorMessage(int errCode)
 {
 	static char buffer[80];
 
@@ -109,24 +137,14 @@ char    *usbErrorMessage(int errCode)
 }
 
 
-#define UISP_PART_NAME_LEN  8
-
-struct partInfo {
-	uint16_t      pageSize;
-	uint32_t      size;
-	uint8_t       ioSize;
-	uint8_t       name[UISP_PART_NAME_LEN];
-}  __attribute__((packed));
-
-struct deviceInfo {
-	uint8_t       reportId;
-	uint8_t       numParts;
-	uint8_t       cpuFreq;
-	struct partInfo parts[];
-} __attribute__((packed));
-
-
-
+/** 
+ * Reads the information struct from the device. The caller must free the 
+ * struct obtained. 
+ * 
+ * @param dev 
+ * 
+ * @return 
+ */
 struct deviceInfo *uispReadInfo(usbDevice_t *dev)
 {
 	int len = 255;
@@ -172,7 +190,6 @@ error:
  * 
  * @return 
  */
-
 usbDevice_t *uispOpen(const char *devId, const char *serial)
 {
 	usbDevice_t *dev = NULL;
@@ -182,6 +199,7 @@ usbDevice_t *uispOpen(const char *devId, const char *serial)
 				IDENT_PRODUCT_NUM, devId, 
 				serial)) != 0) {
 		fprintf(stderr, "Error opening uHID device: %s\n", usbErrorMessage(err));
+		return NULL;
 	}
 	return dev;
 }
@@ -220,11 +238,13 @@ char *uispReadPart(usbDevice_t *dev, int part, int *bytes_read)
 			goto errfreetmp;
 		}
 		pos+=len;
+		show_progress("Reading", pos, size);
 	}
 
 	if (bytes_read)
 		*bytes_read = pos; 
 	free(inf);
+	show_progress("Reading", size, size);
 	return tmp;
 errfreetmp:
 	free(tmp);
@@ -234,7 +254,16 @@ errfreeinf:
 		
 }
 
-
+/** 
+ * Write data from buffer to partition
+ * 
+ * @param dev 
+ * @param part 
+ * @param buf 
+ * @param length 
+ * 
+ * @return 
+ */
 int uispWritePart(usbDevice_t *dev, int part, const char *buf, int length)
 {
 	int ret=0;
@@ -256,12 +285,156 @@ int uispWritePart(usbDevice_t *dev, int part, const char *buf, int length)
 			break;
 		}
 		pos+=len;
-		printf("write %d/%d\n", pos, size);
+		show_progress("Writing", pos, size);
 	}
 	free(inf);
+	show_progress("Writing", size, size);
 	return ret;		
 }
 
+int uispLookupPart(usbDevice_t *dev, const char *name)
+{
+	struct deviceInfo *inf = uispReadInfo(dev);
+	if (!inf)
+		return -1;
+	int ret = -1;
+	int i;
+	for (i=0; i < inf->numParts; i++) {
+		if (strcmp(name, inf->parts[i].name)==0) {
+			ret = i + 1;
+			break;
+		}
+	}
+	free(inf);
+	return ret; 
+}
+
+int uispVerifyPart(usbDevice_t *dev, int part, const char *buf, int len)
+{
+	int bytes;
+	void *pbuf = uispReadPart(dev, part, &bytes);
+	if (buf == NULL)
+		return -1;
+	return memcmp(buf, pbuf, len);
+}
+
+int uispVerifyPartFromFile(usbDevice_t *dev, int part, const char *filename)
+{
+	int len; 
+
+	char *pbuf = uispReadPart(dev, part, &len);
+	if (!pbuf)
+		return -1;
+
+	int ret; 
+	int len_file;
+	struct stat st;
+
+	ret = stat(filename, &st);
+
+	if (ret != 0)
+		return ret; 
+
+	len_file = (int ) st.st_size;
+	if (len_file < len)
+		len = len_file; 
+
+	char *buf = malloc(len); 
+	if (!buf) { 
+		ret = -ENOMEM;
+		goto errfreepbuf;
+	}
+
+	FILE *fd = fopen(filename, "r");	
+	if (!fd) { 
+		ret = -EIO;
+		goto errfreebuf;
+	}
+	
+	ret = fread(buf, len, 1, fd);
+	if (ret != 1) {
+		ret = -EIO;
+		goto errclose;
+	}
+	
+	ret = uispVerifyPart(dev, part, buf, len);
+
+errclose:
+	fclose(fd);
+errfreebuf:
+	free(buf);
+errfreepbuf:
+	free(pbuf);
+	return ret;
+}
+
+int uispReadPartToFile(usbDevice_t *dev, int part, const char *filename)
+{
+	int bytes;
+	void *buf = uispReadPart(dev, part, &bytes);
+	if (buf == NULL)
+		return -1;
+
+	FILE *fd = fopen(filename, "w+");
+	if (!fd)
+		return -errno;
+	int ret = fwrite(buf, bytes, 1, fd); 
+	fclose(fd);
+	return (ret == 0);
+}
+
+
+int uispWritePartFromFile(usbDevice_t *dev, int part, const char *filename)
+{
+	struct deviceInfo *inf = uispReadInfo(dev);
+	if (!inf)
+		return -1;
+
+	if (part > inf->numParts)
+		return -1;
+
+	int ret; 
+	int len = inf->parts[part-1].size; 
+	int len_file;
+	struct stat st;
+
+	ret = stat(filename, &st);
+
+	if (ret != 0)
+		return ret; 
+
+	len_file = (int ) st.st_size;
+	if (len_file < len)
+		len = len_file; 
+
+	char *buf = malloc(len); 
+	if (!buf) { 
+		ret = -ENOMEM;
+		goto errfreeinf;
+	}
+
+	FILE *fd = fopen(filename, "r");	
+	if (!fd) { 
+		ret = -EIO;
+		goto errfreebuf;
+	}
+	
+	ret = fread(buf, len, 1, fd);
+	if (ret != 1) {
+		ret = -EIO;
+		goto errclose;
+	}
+	
+	ret = uispWritePart(dev, part, buf, len);
+
+errclose:
+	fclose(fd);
+errfreebuf:
+	free(buf);
+errfreeinf:
+	free(inf);
+	return ret;
+}
 
 void uispClose(usbDevice_t *dev)
 {
@@ -271,11 +444,11 @@ void uispClose(usbDevice_t *dev)
 void uispCloseAndRun(usbDevice_t *dev, int part)
 {	
 	char tmp[8];	
-	/* This will fail anyway since the device will disconnect */
 	usbSetReport(dev, USB_HID_REPORT_TYPE_FEATURE, 0,
 		     tmp, 1);
 	uispClose(dev);
 }
+
 
 void uispPrintInfo(struct deviceInfo *inf)
 {
@@ -289,53 +462,4 @@ void uispPrintInfo(struct deviceInfo *inf)
 		       i, p->name, p->size, p->pageSize, p->ioSize);		
 	}
 }
-
-int main(int argc, char **argv)
-{
-	int err;
-	int ret = 0;
-
-	usbDevice_t *uisp = uispOpen(NULL, NULL);
-	if (!uisp)
-		exit(1);
-
-	struct deviceInfo *inf = uispReadInfo(uisp);
-	uispPrintInfo(inf);
-	char *tmp = malloc(8192*1024);
-	FILE *fd; 
-	int part = 1; 
-
-	printf("WRITE: %d \n", inf->parts[part-1].size);
-	fd = fopen(argv[1], "r");
-	err = fread(tmp, 1, inf->parts[part-1].size, fd);
-	fclose(fd);
-	uispWritePart(uisp, part, tmp, err);
-
-
-/*
-	printf("READ %d bytes\n", inf->parts[part-1].size);
-	tmp = uispReadPart(uisp, part, &len);
-	fd = fopen("dump.bin", "w+");
-	fwrite(tmp, 1, len, fd);
-	fclose(fd);
-	free(tmp);
-
-	printf("READ %d bytes\n", inf->parts[part-1].size);
-	tmp = uispReadPart(uisp, part, &len);
-	fd = fopen("dump2.bin", "w+");
-	fwrite(tmp, 1, len, fd);
-	fclose(fd);
-	free(tmp);
-
-	printf("%d bytes read\n", len);
-*/
-	printf("EXEC!\n");
-	uispCloseAndRun(uisp, 1);
-
-//errorOccurred:
-//	free(inf);
-//	uispClose(uisp);
-	return ret;
-}
-
 

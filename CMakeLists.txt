@@ -1,0 +1,59 @@
+CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
+
+PROJECT(uhid)
+SET(PROJECT_VERSION   0.2.1)
+
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -fPIC -g")
+
+enable_testing()
+
+FIND_PACKAGE(PkgConfig)
+
+PKG_CHECK_MODULES(LIBUSB libusb)
+
+SET(SRCS   
+  libuisp.c
+  usbcalls.c
+)
+
+INCLUDE_DIRECTORIES(
+    ./include/
+    ${LIBUSB_INCLUDE_DIRS}
+)
+
+
+ADD_LIBRARY(uhid OBJECT ${SRCS})
+
+ADD_LIBRARY(uhidstatic STATIC $<TARGET_OBJECTS:uhid>)
+SET_TARGET_PROPERTIES(uhidstatic PROPERTIES OUTPUT_NAME uhid)
+TARGET_LINK_LIBRARIES(uhidstatic
+    ${LIBUSB_LIBRARIES}
+)
+
+ADD_LIBRARY(uhidshared SHARED $<TARGET_OBJECTS:uhid>)
+SET_TARGET_PROPERTIES(uhidshared PROPERTIES OUTPUT_NAME uhid)
+TARGET_LINK_LIBRARIES(uhidshared
+    ${LIBUSB_LIBRARIES}
+)
+
+ADD_EXECUTABLE(uhidtool uisptool.c)
+TARGET_LINK_LIBRARIES(uhidtool
+    uhidshared
+)
+
+ADD_TEST(test-flash ${CMAKE_SOURCE_DIR}/tests/write-verify.sh 
+  ${CMAKE_BINARY_DIR}/uhidtool flash 6
+)
+
+ADD_TEST(test-eeprom ${CMAKE_SOURCE_DIR}/tests/write-verify.sh 
+  ${CMAKE_BINARY_DIR}/uhidtool eeprom 6
+)
+
+INSTALL(TARGETS uhidshared LIBRARY
+        DESTINATION lib/${CMAKE_LIBRARY_PATH})
+
+INSTALL(TARGETS uhidstatic ARCHIVE
+        DESTINATION lib/${CMAKE_LIBRARY_PATH})
+
+INSTALL(TARGETS uhidtool RUNTIME
+        DESTINATION bin)
