@@ -28,7 +28,7 @@ static char  IDENT_VENDOR_STRING[255]  =    "uHID";
 static void (*progresscb)(const char *label, int cur, int max);
 
 
-void uispProgressCb(void (*cb)(char *label, int cur, int max))
+void uispProgressCb(void (*cb)(const char *label, int cur, int max))
 {
 	progresscb = cb;
 }
