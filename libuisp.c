@@ -46,7 +46,7 @@ static void show_progress(const char *label, int cur, int max)
  * @param product 
  * @param vstring 
  */
-void uispOverrideLoaderInfo(int vendor, int product, int vstring)
+void uispOverrideLoaderInfo(int vendor, int product, const char *vstring)
 {
 	IDENT_VENDOR_NUM = vendor;
 	IDENT_PRODUCT_NUM = product;
@@ -300,7 +300,7 @@ int uispLookupPart(usbDevice_t *dev, const char *name)
 	int ret = -1;
 	int i;
 	for (i=0; i < inf->numParts; i++) {
-		if (strcmp(name, inf->parts[i].name)==0) {
+		if (strcmp(name, (char *) inf->parts[i].name)==0) {
 			ret = i + 1;
 			break;
 		}

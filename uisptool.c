@@ -13,7 +13,6 @@
 
 
 static  int verify = 1;
-static  int op;
 static 	const char *partname;
 enum { 
 	OP_NONE = 0,
@@ -37,7 +36,7 @@ static struct option long_options[] =
 	{0, 0, 0, 0}
 };
 
-void progressbar(char *label, int value, int max)
+void progressbar(const char *label, int value, int max)
 {
 	value = max - value;
 	float percent = 100.0 - (float) value * 100.0 / (float) max;
@@ -61,7 +60,7 @@ void progressbar(char *label, int value, int max)
 	fflush(stdout);
 }
  
-static void check_and_open(usbDevice_t **dev, char *product, char *serial)
+static void check_and_open(usbDevice_t **dev, const char *product, const char *serial)
 {
 	if (*dev)
 		return;
@@ -82,12 +81,10 @@ static void usage(const char *name)
 
 int main(int argc, char **argv)
 {
-	int err;
 	int ret = 0;
-
 	usbDevice_t *uisp = NULL;
-	int op; 
 	int part; 
+	struct deviceInfo *inf; 
 
 	const char *product = NULL;
 	const char *serial = NULL;
@@ -113,7 +110,10 @@ int main(int argc, char **argv)
 			break;
 		case 'i':
 			check_and_open(&uisp, product, serial);
-			uispPrintInfo(uisp);
+			inf = uispReadInfo(uisp);
+			uispPrintInfo(inf);
+			free(inf);
+			return 0;
 			break;
 		case 'r':
 			filename = optarg;
