@@ -2,6 +2,7 @@ CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
 
 PROJECT(uhid)
 SET(PROJECT_VERSION   0.2.1)
+SET(UHID_API_VERSION  2)
 
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -fPIC -g")
 
@@ -32,6 +33,9 @@ TARGET_LINK_LIBRARIES(uhidstatic
 
 ADD_LIBRARY(uhidshared SHARED $<TARGET_OBJECTS:uhid>)
 SET_TARGET_PROPERTIES(uhidshared PROPERTIES OUTPUT_NAME uhid)
+SET_TARGET_PROPERTIES(uhidshared PROPERTIES SOVERSION ${PROJECT_VERSION}
+  VERSION ${UHID_API_VERSION})
+
 TARGET_LINK_LIBRARIES(uhidshared
     ${LIBUSB_LIBRARIES}
 )
@@ -41,13 +45,15 @@ TARGET_LINK_LIBRARIES(uhidtool
     uhidshared
 )
 
-ADD_TEST(test-flash ${CMAKE_SOURCE_DIR}/tests/write-verify.sh 
-  ${CMAKE_BINARY_DIR}/uhidtool flash 6
-)
+if (ENABLE_TESTS_AVR)
+  ADD_TEST(test-flash ${CMAKE_SOURCE_DIR}/tests/write-verify.sh 
+    ${CMAKE_BINARY_DIR}/uhidtool flash 6
+    )
 
-ADD_TEST(test-eeprom ${CMAKE_SOURCE_DIR}/tests/write-verify.sh 
-  ${CMAKE_BINARY_DIR}/uhidtool eeprom 6
-)
+  ADD_TEST(test-eeprom ${CMAKE_SOURCE_DIR}/tests/write-verify.sh 
+    ${CMAKE_BINARY_DIR}/uhidtool eeprom 6
+    )
+endif()
 
 INSTALL(TARGETS uhidshared LIBRARY
         DESTINATION lib/${CMAKE_LIBRARY_PATH})
