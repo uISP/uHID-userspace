@@ -39,12 +39,12 @@ static void show_progress(const char *label, int cur, int max)
 		progresscb(label, cur, max);
 }
 
-/** 
+/**
  * Override usb device information
- * 
- * @param vendor 
- * @param product 
- * @param vstring 
+ *
+ * @param vendor
+ * @param product
+ * @param vstring
  */
 void uispOverrideLoaderInfo(int vendor, int product, const char *vstring)
 {
@@ -137,18 +137,18 @@ static char    *usbErrorMessage(int errCode)
 }
 
 
-/** 
- * Reads the information struct from the device. The caller must free the 
- * struct obtained. 
- * 
- * @param dev 
- * 
- * @return 
+/**
+ * Reads the information struct from the device. The caller must free the
+ * struct obtained.
+ *
+ * @param dev
+ *
+ * @return
  */
 struct deviceInfo *uispReadInfo(usbDevice_t *dev)
 {
 	int len = 255;
-	int i; 
+	int i;
 	struct deviceInfo *inf = calloc(len, 1);
 	if (!inf)
 		goto error;
@@ -159,18 +159,18 @@ struct deviceInfo *uispReadInfo(usbDevice_t *dev)
 
 	/* Sanity checking and force strings end with zeroes just in case */
 
-	
-	if ((len < sizeof(struct deviceInfo)) || 
+
+	if ((len < sizeof(struct deviceInfo)) ||
 	    (len < sizeof(struct deviceInfo) + inf->numParts * sizeof(struct partInfo))) {
 		fprintf(stderr, "Short-read on deviceInfo - bad bootloader version?\n");
-		fprintf(stderr, "Expected %lu bytes, got %d bytes (%lu + %d * %lu)\n", 
+		fprintf(stderr, "Expected %lu bytes, got %d bytes (%lu + %d * %lu)\n",
 			sizeof(struct deviceInfo) + inf->numParts * sizeof(struct partInfo),
-			len, 
+			len,
 			sizeof(struct deviceInfo), 2, sizeof(struct partInfo));
 		exit(1);
 	}
 
-	for (i=0; i<inf->numParts; i++) { 
+	for (i=0; i<inf->numParts; i++) {
 		inf->parts[i].name[UISP_PART_NAME_LEN -1] = 0;
 	}
 
@@ -179,24 +179,24 @@ error:
 	if (inf)
 		free(inf);
 	return NULL;
-			
+
 }
 
 
-/** 
+/**
  * Open a uisp device. This function will pick the device with USB serial number
- * 
+ *
  * @param serial USB Serial Number string to match
- * 
- * @return 
+ *
+ * @return
  */
 usbDevice_t *uispOpen(const char *devId, const char *serial)
 {
 	usbDevice_t *dev = NULL;
 	int err;
-	if((err = usbOpenDevice(&dev, 
-				IDENT_VENDOR_NUM, IDENT_VENDOR_STRING, 
-				IDENT_PRODUCT_NUM, devId, 
+	if((err = usbOpenDevice(&dev,
+				IDENT_VENDOR_NUM, IDENT_VENDOR_STRING,
+				IDENT_PRODUCT_NUM, devId,
 				serial)) != 0) {
 		fprintf(stderr, "Error opening uHID device: %s\n", usbErrorMessage(err));
 		return NULL;
@@ -205,15 +205,15 @@ usbDevice_t *uispOpen(const char *devId, const char *serial)
 }
 
 
-/** 
+/**
  * Read a partition to a character buffer. Returns a pointer to the allocated buffer or NULL.
- * If the buffer 
- * 
- * @param dev 
- * @param part 
- * @param bytes_read 
- * 
- * @return 
+ * If the buffer
+ *
+ * @param dev
+ * @param part
+ * @param bytes_read
+ *
+ * @return
  */
 char *uispReadPart(usbDevice_t *dev, int part, int *bytes_read)
 {
@@ -222,27 +222,28 @@ char *uispReadPart(usbDevice_t *dev, int part, int *bytes_read)
 		return NULL;
 	if (part <= 0)
 		return NULL;
-	if (part > inf->numParts) 
+	if (part > inf->numParts)
 		return NULL;
-	
+
 	uint32_t size = inf->parts[part-1].size;
 	char *tmp = malloc(size);
 	if (!tmp)
 		goto errfreeinf;
 
 	int pos = 0;
-	while (pos < size) { 
+	while (pos < size) {
 		int len = min_t(int, size - pos, inf->parts[part-1].ioSize);
-		if ((usbGetReport(dev, USB_HID_REPORT_TYPE_FEATURE, 
+		if ((usbGetReport(dev, USB_HID_REPORT_TYPE_FEATURE,
 				  part, (char *) &tmp[pos], &len)) != 0) {
 			goto errfreetmp;
 		}
 		pos+=len;
 		show_progress("Reading", pos, size);
+
 	}
 
 	if (bytes_read)
-		*bytes_read = pos; 
+		*bytes_read = pos;
 	free(inf);
 	show_progress("Reading", size, size);
 	return tmp;
@@ -251,18 +252,18 @@ errfreetmp:
 errfreeinf:
 	free(inf);
 	return NULL;
-		
+
 }
 
-/** 
+/**
  * Write data from buffer to partition
- * 
- * @param dev 
- * @param part 
- * @param buf 
- * @param length 
- * 
- * @return 
+ *
+ * @param dev
+ * @param part
+ * @param buf
+ * @param length
+ *
+ * @return
  */
 int uispWritePart(usbDevice_t *dev, int part, const char *buf, int length)
 {
@@ -272,24 +273,33 @@ int uispWritePart(usbDevice_t *dev, int part, const char *buf, int length)
 		return -ENOENT;
 	if (part <= 0)
 		return -ENOENT;
-	if (part > inf->numParts) 
+	if (part > inf->numParts)
 		return -ENOENT;
-	
+
+	int pageSize = inf->parts[part-1].pageSize;
 	uint32_t size = inf->parts[part-1].size;
+	size = min_t(uint32_t, size, length);
+	size += pageSize - (size % pageSize);
+
+	char *destbuf = calloc(1, size);
+	memcpy(destbuf, buf, length);
+
 	int pos = 0;
-	while (pos < size) { 
+	while (pos < size) {
 		int len = min_t(int, size - pos, inf->parts[part-1].ioSize);
 		if ((usbSetReport(dev, USB_HID_REPORT_TYPE_FEATURE, part,
-				  (char *) &buf[pos], len)) != 0) {
+				  (char *) &destbuf[pos], len)) != 0) {
 			ret = -EIO;
 			break;
 		}
 		pos+=len;
 		show_progress("Writing", pos, size);
 	}
+
 	free(inf);
+	free(destbuf);
 	show_progress("Writing", size, size);
-	return ret;		
+	return ret;
 }
 
 int uispLookupPart(usbDevice_t *dev, const char *name)
@@ -306,7 +316,7 @@ int uispLookupPart(usbDevice_t *dev, const char *name)
 		}
 	}
 	free(inf);
-	return ret; 
+	return ret;
 }
 
 int uispVerifyPart(usbDevice_t *dev, int part, const char *buf, int len)
@@ -320,51 +330,46 @@ int uispVerifyPart(usbDevice_t *dev, int part, const char *buf, int len)
 
 int uispVerifyPartFromFile(usbDevice_t *dev, int part, const char *filename)
 {
-	int len; 
+	int len;
 
-	char *pbuf = uispReadPart(dev, part, &len);
-	if (!pbuf)
-		return -1;
-
-	int ret; 
+	int ret;
 	int len_file;
 	struct stat st;
 
 	ret = stat(filename, &st);
 
 	if (ret != 0)
-		return ret; 
+		return ret;
 
 	len_file = (int ) st.st_size;
 	if (len_file < len)
-		len = len_file; 
+		len = len_file;
 
-	char *buf = malloc(len); 
-	if (!buf) { 
+	char *buf = malloc(len);
+	if (!buf) {
 		ret = -ENOMEM;
-		goto errfreepbuf;
+		goto errret;
 	}
 
-	FILE *fd = fopen(filename, "r");	
-	if (!fd) { 
+	FILE *fd = fopen(filename, "r");
+	if (!fd) {
 		ret = -EIO;
 		goto errfreebuf;
 	}
-	
+
 	ret = fread(buf, len, 1, fd);
 	if (ret != 1) {
 		ret = -EIO;
 		goto errclose;
 	}
-	
+
 	ret = uispVerifyPart(dev, part, buf, len);
 
 errclose:
 	fclose(fd);
 errfreebuf:
-	free(buf);
-errfreepbuf:
-	free(pbuf);
+		free(buf);
+errret:
 	return ret;
 }
 
@@ -378,7 +383,7 @@ int uispReadPartToFile(usbDevice_t *dev, int part, const char *filename)
 	FILE *fd = fopen(filename, "w+");
 	if (!fd)
 		return -errno;
-	int ret = fwrite(buf, bytes, 1, fd); 
+	int ret = fwrite(buf, bytes, 1, fd);
 	fclose(fd);
 	return (ret == 0);
 }
@@ -393,38 +398,38 @@ int uispWritePartFromFile(usbDevice_t *dev, int part, const char *filename)
 	if (part > inf->numParts)
 		return -1;
 
-	int ret; 
-	int len = inf->parts[part-1].size; 
+	int ret;
+	int len = inf->parts[part-1].size;
 	int len_file;
 	struct stat st;
 
 	ret = stat(filename, &st);
 
 	if (ret != 0)
-		return ret; 
+		return ret;
 
 	len_file = (int ) st.st_size;
 	if (len_file < len)
-		len = len_file; 
+		len = len_file;
 
-	char *buf = malloc(len); 
-	if (!buf) { 
+	char *buf = malloc(len);
+	if (!buf) {
 		ret = -ENOMEM;
 		goto errfreeinf;
 	}
 
-	FILE *fd = fopen(filename, "r");	
-	if (!fd) { 
+	FILE *fd = fopen(filename, "r");
+	if (!fd) {
 		ret = -EIO;
 		goto errfreebuf;
 	}
-	
+
 	ret = fread(buf, len, 1, fd);
 	if (ret != 1) {
 		ret = -EIO;
 		goto errclose;
 	}
-	
+
 	ret = uispWritePart(dev, part, buf, len);
 
 errclose:
@@ -438,12 +443,12 @@ errfreeinf:
 
 void uispClose(usbDevice_t *dev)
 {
-	usbCloseDevice(dev);	
+	usbCloseDevice(dev);
 }
 
 void uispCloseAndRun(usbDevice_t *dev, int part)
-{	
-	char tmp[8];	
+{
+	char tmp[8];
 	usbSetReport(dev, USB_HID_REPORT_TYPE_FEATURE, 0,
 		     tmp, 1);
 	uispClose(dev);
@@ -456,10 +461,9 @@ void uispPrintInfo(struct deviceInfo *inf)
 
 	printf("Partitions:        %d\n", inf->numParts);
 	printf("CPU Frequency:     %.1f Mhz\n", inf->cpuFreq / 10.0);
-	for (i=0; i<inf->numParts; i++) { 
+	for (i=0; i<inf->numParts; i++) {
 		struct partInfo *p = &inf->parts[i];
-		printf("%d. %s %d bytes (%d byte pages, %d bytes per packet)  \n", 
-		       i, p->name, p->size, p->pageSize, p->ioSize);		
+		printf("%d. %s %d bytes (%d byte pages, %d bytes per packet)  \n",
+		       i, p->name, p->size, p->pageSize, p->ioSize);
 	}
 }
-
