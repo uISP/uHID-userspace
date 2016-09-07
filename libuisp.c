@@ -278,8 +278,15 @@ int uispWritePart(usbDevice_t *dev, int part, const char *buf, int length)
 
 	int pageSize = inf->parts[part-1].pageSize;
 	uint32_t size = inf->parts[part-1].size;
+	if (length > size) {
+		printf("WARNING: Input file buffer exceeds the target partition size\n");
+		printf("WARNING: The data will be truncated\n");
+	}
+
 	size = min_t(uint32_t, size, length);
-	size += pageSize - (size % pageSize);
+
+	if (size % pageSize)
+		size += pageSize - (size % pageSize);
 
 	char *destbuf = calloc(1, size);
 	memcpy(destbuf, buf, length);
@@ -323,9 +330,12 @@ int uispVerifyPart(usbDevice_t *dev, int part, const char *buf, int len)
 {
 	int bytes;
 	void *pbuf = uispReadPart(dev, part, &bytes);
-	if (buf == NULL)
+
+	if (pbuf == NULL)
 		return -1;
-	return memcmp(buf, pbuf, len);
+
+	bytes = min_t(int, bytes, len);
+	return memcmp(buf, pbuf, bytes);
 }
 
 int uispVerifyPartFromFile(usbDevice_t *dev, int part, const char *filename)
@@ -353,12 +363,14 @@ int uispVerifyPartFromFile(usbDevice_t *dev, int part, const char *filename)
 
 	FILE *fd = fopen(filename, "r");
 	if (!fd) {
+		fprintf(stderr, "Failed to open %s for reading\n", filename);
 		ret = -EIO;
 		goto errfreebuf;
 	}
 
 	ret = fread(buf, len, 1, fd);
 	if (ret != 1) {
+		fprintf(stderr, "Failed to read %d bytes from file %s\n", len, filename);
 		ret = -EIO;
 		goto errclose;
 	}
@@ -368,7 +380,7 @@ int uispVerifyPartFromFile(usbDevice_t *dev, int part, const char *filename)
 errclose:
 	fclose(fd);
 errfreebuf:
-		free(buf);
+	free(buf);
 errret:
 	return ret;
 }
