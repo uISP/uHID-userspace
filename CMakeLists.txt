@@ -27,7 +27,7 @@ else()
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
 endif()
 
-set(SRCS ${SRCS} libuisp.c)
+set(SRCS ${SRCS} libuhid.c)
 message("${SRCS}")
 INCLUDE_DIRECTORIES(
     ./include/

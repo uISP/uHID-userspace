@@ -24,7 +24,7 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <errno.h>
-#include <libuisp.h>
+#include <libuhid.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>

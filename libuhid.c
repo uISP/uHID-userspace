@@ -29,7 +29,7 @@
 #include <sys/stat.h>
 #include <unistd.h>
 #include <hidapi/hidapi.h>
-#include <libuisp.h>
+#include <libuhid.h>
 
 static int   IDENT_VENDOR_NUM          =    0x1d50;
 static int   IDENT_PRODUCT_NUM         =    0x6032;
