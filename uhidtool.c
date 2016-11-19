@@ -1,3 +1,24 @@
+/*
+ *  uHID Universal MCU Bootloader. App loader tool.
+ *  Copyright (C) 2016  Andrew 'Necromant' Andrianov
+ *
+ *  This file is part of uHID project. uHID is loosely (very)
+ *  based on bootloadHID avr bootloader by Christian Starkjohann
+ *
+ *  uHID is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  uHID is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with uHID.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -8,13 +29,15 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <ctype.h>
+#ifndef _WIN32
 #include <sys/ioctl.h>
+#endif
 #include <getopt.h>
 
 
 static  int verify = 1;
 static 	const char *partname;
-enum { 
+enum {
 	OP_NONE = 0,
 	OP_READ,
 	OP_WRITE,
@@ -41,16 +64,21 @@ void progressbar(const char *label, int value, int max)
 	value = max - value;
 	float percent = 100.0 - (float) value * 100.0 / (float) max;
 	int cols;
+
+#ifndef _WIN32
 	struct winsize w;
 	ioctl(STDOUT_FILENO, TIOCGWINSZ, &w);
 	cols = w.ws_col;
+#else
+	cols = 80;
+#endif
 
 	int txt = printf("%s %.02f %% done [", label, percent);
 	int max_bars = cols - txt - 7;
 	int bars = max_bars - (int)(((float) value * max_bars) / (float) max);
 
 	if (max_bars > 0) {
-		int i;	
+		int i;
 		for (i=0; i<bars; i++)
 			printf("#");
 		for (i=bars; i<max_bars; i++)
@@ -59,14 +87,28 @@ void progressbar(const char *label, int value, int max)
 	}
 	fflush(stdout);
 }
- 
-static void check_and_open(usbDevice_t **dev, const char *product, const char *serial)
+
+static void check_and_open(hid_device **dev, const char *product, const char *serial)
 {
 	if (*dev)
 		return;
-	*dev = uispOpen(product, serial);
+
+	wchar_t *tmp = NULL;
+
+	if (serial) {
+	  tmp = malloc(strlen(serial) * (sizeof(wchar_t) + 1));
+		if (!tmp) {
+			fprintf(stderr, "Out of memory\n");
+			exit(1);
+		}
+		mbstowcs(tmp, serial, strlen(serial));
+	}
+
+	*dev = uispOpen(NULL, NULL);
 	if (!*dev)
 		exit(1);
+	if (tmp)
+		free(tmp);
 }
 
 static void usage(const char *name)
@@ -82,23 +124,23 @@ static void usage(const char *name)
 int main(int argc, char **argv)
 {
 	int ret = 0;
-	usbDevice_t *uisp = NULL;
-	int part; 
-	struct deviceInfo *inf; 
+	hid_device *uisp = NULL;
+	int part;
+	struct deviceInfo *inf;
 
 	const char *product = NULL;
 	const char *serial = NULL;
-	const char *filename; 
+	const char *filename;
 	uispProgressCb(progressbar);
 
-	while (1) { 
+	while (1) {
 		int option_index = 0;
-		int c;		
+		int c;
 		c = getopt_long (argc, argv, "hp:w:r:p:v:P:S:",
 				 long_options, &option_index);
 		if (c == -1)
 			break;
-		switch(c) { 
+		switch(c) {
 		case 'h':
 			usage(argv[0]);
 			break;

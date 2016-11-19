@@ -47,8 +47,10 @@ static void convertUniToAscii(char *buffer)
 	*ascii++ = 0;
 }
 
-int usbOpenDevice(usbDevice_t **device, int vendor, char *vendorName, int product, 
-		  char *productName, char *serial, int usesReportIDs)
+int usbOpenDevice(usbDevice_t **device,
+							int vendor, const char *vendorName,
+							int product, const char *productName,
+							const char* serial)
 {
 	GUID                                hidGuid;        /* GUID for HID driver */
 	HDEVINFO                            deviceInfoList;
@@ -59,7 +61,7 @@ int usbOpenDevice(usbDevice_t **device, int vendor, char *vendorName, int produc
 	int                                 errorCode = USB_ERROR_NOTFOUND;
 	HANDLE                              handle = INVALID_HANDLE_VALUE;
 	HIDD_ATTRIBUTES                     deviceAttributes;
-				
+
 	HidD_GetHidGuid(&hidGuid);
 	deviceInfoList = SetupDiGetClassDevs(&hidGuid, NULL, NULL, DIGCF_PRESENT | DIGCF_INTERFACEDEVICE);
 	deviceInfo.cbSize = sizeof(deviceInfo);
@@ -134,20 +136,25 @@ void    usbCloseDevice(usbDevice_t *device)
 
 /* ------------------------------------------------------------------------ */
 
-int usbSetReport(usbDevice_t *device, int reportType, char *buffer, int len)
+int usbSetReport(usbDevice_t *device, int reportType, int reportNumber, char *buffer, int len)
+//int usbSetReport(usbDevice_t *device, int reportType, char *buffer, int len)
 {
 	HANDLE  handle = (HANDLE)device;
 	BOOLEAN rval = 0;
 	DWORD   bytesWritten;
+	char *tmp = alloca(len+1);
+
+	tmp[0] = reportNumber;
+  memcpy(&tmp[1], buffer, len);
 
 	switch(reportType){
 	case USB_HID_REPORT_TYPE_INPUT:
 		break;
 	case USB_HID_REPORT_TYPE_OUTPUT:
-		rval = WriteFile(handle, buffer, len, &bytesWritten, NULL);
+		rval = WriteFile(handle, tmp, len+1, &bytesWritten, NULL);
 		break;
 	case USB_HID_REPORT_TYPE_FEATURE:
-		rval = HidD_SetFeature(handle, buffer, len);
+		rval = HidD_SetFeature(handle, tmp, len+1);
 		break;
 	}
 	return rval == 0 ? USB_ERROR_IO : 0;
