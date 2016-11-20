@@ -1,4 +1,5 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
+set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_SOURCE_DIR}/cmake/modules")
 
 PROJECT(uhid)
 SET(PROJECT_VERSION   0.2.1)
@@ -7,7 +8,10 @@ SET(UHID_API_VERSION  2)
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GNU_SOURCE=1")
 
 enable_testing()
+
 set(CPACK_GENERATOR "ZIP")
+
+
 include(CPack)
 include (GenerateExportHeader)
 include(CheckCCompilerFlag)
@@ -32,28 +36,14 @@ if (CMAKE_BUILD_TYPE MATCHES "Debug")
 endif()
 
 if (CMAKE_BUILD_TYPE MATCHES "StaticRelease")
-  SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc")
-endif()
-
-if (WIN32 OR MSYS OR MINGW)
-  find_path(HIDAPI_DIR hidapi/hidapi.h ${CMAKE_SOURCE_DIR}/deps/hidapi ${CMAKE_SOURCE_DIR}/deps/hidapi-0.7.0 ${UHID_HIDAPI_DIR})
-  if (HIDAPI_DIR-NOTFOUND)
-    message(ERROR "Please download and unpack to hidapi to ${CMAKE_SOURCE_DIR}/deps/hidapi")
-    message(ERROR ".. or pass a valid -DUHID_HIDAPI_DIR= to cmake")
-  else()
-    message(STATUS "Using hidapi in ${HIDAPI_DIR}")
+  if (WIN32 OR MINGW OR MSYS)
+    SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc")
   endif()
-
-  set(HIDAPI_INCLUDE_DIRS "${HIDAPI_DIR};${HIDAPI_DIR}/hidapi")
-  set(SRCS "${HIDAPI_DIR}/windows/hid.c")
-  set(HIDAPI_LIBRARIES "setupapi")
-else()
-  FIND_PACKAGE(PkgConfig)
-  PKG_CHECK_MODULES(HIDAPI hidapi-libusb)
-  add_cflag_if_supported( "-fPIC ")
 endif()
 
-set(SRCS ${SRCS} libuhid.c)
+find_package(HidApi)
+
+set(SRCS ${SRCS} libuhid.c ${HIDAPI_SOURCES})
 INCLUDE_DIRECTORIES(
     ./include/
     ${HIDAPI_INCLUDE_DIRS}
