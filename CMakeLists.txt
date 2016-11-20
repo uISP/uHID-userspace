@@ -11,7 +11,7 @@ set(CPACK_GENERATOR "ZIP")
 include(CPack)
 include (GenerateExportHeader)
 
-if (WIN32)
+if (WIN32 OR MSYS OR MINGW)
   find_path(HIDAPI_DIR hidapi/hidapi.h ${CMAKE_SOURCE_DIR}/deps/hidapi ${CMAKE_SOURCE_DIR}/deps/hidapi-0.7.0 ${UHID_HIDAPI_DIR})
   if (HIDAPI_DIR-NOTFOUND)
     message(ERROR "Please download and unpack to hidapi to ${CMAKE_SOURCE_DIR}/deps/hidapi")
