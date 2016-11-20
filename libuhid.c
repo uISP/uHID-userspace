@@ -139,7 +139,7 @@ static ssize_t  parseIntelHex(const char *hexfile, char *buffer, int *startAddr,
  *
  * @return
  */
-struct UHID_API deviceInfo *uispReadInfo(hid_device *dev)
+UHID_API struct deviceInfo *uispReadInfo(hid_device *dev)
 {
 	int len = 255;
 	int i;
