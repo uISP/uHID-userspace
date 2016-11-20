@@ -4,12 +4,36 @@ PROJECT(uhid)
 SET(PROJECT_VERSION   0.2.1)
 SET(UHID_API_VERSION  2)
 
-SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -g -D_GNU_SOURCE=1")
+SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GNU_SOURCE=1")
 
 enable_testing()
 set(CPACK_GENERATOR "ZIP")
 include(CPack)
 include (GenerateExportHeader)
+include(CheckCCompilerFlag)
+function(add_cflag_if_supported flag)
+    string(REPLACE "-" "_" flagclean ${flag})
+    string(REPLACE "=" "_" flagclean ${flagclean})
+    string(REPLACE "+" "_" flagclean ${flagclean})
+    string(REPLACE "," "_" flagclean ${flagclean})
+    string(TOUPPER ${flagclean} flagclean)
+
+    check_c_compiler_flag(${flag} C_SUPPORTS${flagclean})
+
+    if (C_SUPPORTS${flagclean})
+        set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} ${flag}" PARENT_SCOPE)
+    endif()
+endfunction()
+
+
+add_cflag_if_supported("-std=gnu99")
+if (CMAKE_BUILD_TYPE MATCHES "Debug")
+  add_cflag_if_supported("-g")
+endif()
+
+if (CMAKE_BUILD_TYPE MATCHES "StaticRelease")
+  SET(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -static-libgcc")
+endif()
 
 if (WIN32 OR MSYS OR MINGW)
   find_path(HIDAPI_DIR hidapi/hidapi.h ${CMAKE_SOURCE_DIR}/deps/hidapi ${CMAKE_SOURCE_DIR}/deps/hidapi-0.7.0 ${UHID_HIDAPI_DIR})
@@ -26,16 +50,16 @@ if (WIN32 OR MSYS OR MINGW)
 else()
   FIND_PACKAGE(PkgConfig)
   PKG_CHECK_MODULES(HIDAPI hidapi-libusb)
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC ")
+  add_cflag_if_supported( "-fPIC ")
 endif()
 
 set(SRCS ${SRCS} libuhid.c)
-message("${SRCS}")
 INCLUDE_DIRECTORIES(
     ./include/
     ${HIDAPI_INCLUDE_DIRS}
     ${CMAKE_BINARY_DIR}
 )
+
 
 set(UHID_EXPORT_GLUE ${CMAKE_BINARY_DIR}/uhid_export_glue.h)
 ADD_LIBRARY(uhidshared SHARED ${SRCS})
