@@ -31,16 +31,29 @@
 #include <hidapi/hidapi.h>
 #include <libuhid.h>
 
-static int   IDENT_VENDOR_NUM          =    0x1d50;
-static int   IDENT_PRODUCT_NUM         =    0x6032;
-static wchar_t  IDENT_VENDOR_STRING[255]  =    L"uHID";
+
+static struct uHidDeviceMatch compatibleDevices[] = {
+		{
+			/* Necromant's VID/PID for bootloading */
+			.vendor  = 0x1d50,
+		  .product = 0x6032,
+			.vendorName = L"uHID",
+	  },
+		{
+			/* obdev.at bootloadHID VID/PID */
+			.vendor = 0x16c0,
+			.product = 0x05df,
+			.vendorName = L"uhid.ncrmnt.org",
+		},
+		{ /* Sentinel */ }
+};
 
 #define min_t(type, a, b) (((type)(a)<(type)(b))?(type)(a):(type)(b))
 
 static void (*progresscb)(const char *label, int cur, int max);
 
 
-void UHID_API uispProgressCb(void (*cb)(const char *label, int cur, int max))
+void UHID_API uhidProgressCb(void (*cb)(const char *label, int cur, int max))
 {
 	progresscb = cb;
 }
@@ -49,20 +62,6 @@ static void show_progress(const char *label, int cur, int max)
 {
 	if (progresscb)
 		progresscb(label, cur, max);
-}
-
-/**
- * Override usb device information
- *
- * @param vendor
- * @param product
- * @param vstring
- */
-UHID_API void uispOverrideLoaderInfo(int vendor, int product, const wchar_t *vstring)
-{
-	IDENT_VENDOR_NUM = vendor;
-	IDENT_PRODUCT_NUM = product;
-	wcsncpy(IDENT_VENDOR_STRING, vstring, 255);
 }
 
 static int  parseUntilColon(FILE *fp)
@@ -139,11 +138,11 @@ static ssize_t  parseIntelHex(const char *hexfile, char *buffer, int *startAddr,
  *
  * @return
  */
-UHID_API struct deviceInfo *uispReadInfo(hid_device *dev)
+UHID_API struct uHidDeviceInfo *uhidReadInfo(hid_device *dev)
 {
 	int len = 255;
 	int i;
-	struct deviceInfo *inf = calloc(len, 1);
+	struct uHidDeviceInfo *inf = calloc(len, 1);
 	if (!inf)
 		goto error;
 
@@ -154,13 +153,13 @@ UHID_API struct deviceInfo *uispReadInfo(hid_device *dev)
 	}
 
 	/* Sanity checking and force strings end with zeroes just in case */
-	if ((len < sizeof(struct deviceInfo)) ||
-	    (len < sizeof(struct deviceInfo) + inf->numParts * sizeof(struct partInfo))) {
-		fprintf(stderr, "Short-read on deviceInfo - bad bootloader version?\n");
+	if ((len < sizeof(struct uHidDeviceInfo)) ||
+	    (len < sizeof(struct uHidDeviceInfo) + inf->numParts * sizeof(struct uHidPartInfo))) {
+		fprintf(stderr, "Short-read on uHidDeviceInfo - bad bootloader version?\n");
 		fprintf(stderr, "Expected %lu bytes, got %d bytes (%lu + %d * %lu)\n",
-			sizeof(struct deviceInfo) + inf->numParts * sizeof(struct partInfo),
+			sizeof(struct uHidDeviceInfo) + inf->numParts * sizeof(struct uHidPartInfo),
 			len,
-			sizeof(struct deviceInfo), 2, sizeof(struct partInfo));
+			sizeof(struct uHidDeviceInfo), 2, sizeof(struct uHidPartInfo));
 		exit(1);
 	}
 
@@ -177,56 +176,96 @@ error:
 }
 
 
+static int hidDevMatch(struct hid_device_info *inf,
+											struct uHidDeviceMatch *deviceMatch)
+{
+	if (inf->vendor_id != deviceMatch->vendor)
+		return 0;
+
+	if (inf->product_id != deviceMatch->product)
+		return 0;
+
+	if (deviceMatch->vendorName &&
+			(wcscmp(inf->manufacturer_string, deviceMatch->vendorName)!=0))
+			return 0;
+
+	if (deviceMatch->productName &&
+			(wcscmp(inf->product_string, deviceMatch->productName)!=0))
+			return 0;
+
+	if (deviceMatch->productName &&
+  		(wcscmp(inf->serial_number, deviceMatch->serialNumber)!=0))
+			return 0;
+
+	return 1;
+}
+
+
 /**
- * Open a uisp device. This function will pick the device with USB serial number
+ * Returns a linked list of compatible uHID devices found on the system
  *
- * @param serial USB Serial Number string to match
+ * If deviceMatch is NULL uHID will search for devices based on a built-in table
+ * of compatible devices
  *
- * @return
+ * @param deviceMatch Should be an array of suitable matches terminated
+ * by an all-zero element.
+ *
+ * @return device instance or NULL on error
  */
-UHID_API hid_device *uispOpen(const wchar_t *devId, const wchar_t *serial)
+UHID_API struct hid_device_info *uhidListDevices(struct uHidDeviceMatch *deviceMatch)
+{
+	/* TODO: Implement */
+	return NULL;
+}
+
+/**
+ * Open a uHID device. if @deviceMatch table is supplied uHid will find
+ * a device described there.
+ *
+ * if  is NULL uHID will search for devices based on a built-in table
+ *
+ * @param deviceMatch Should be an array of suitable matches terminated
+ * by an all-zero element.
+ *
+ * @return device instance or NULL on error
+ */
+UHID_API hid_device *uhidOpen(struct uHidDeviceMatch *deviceMatch)
 {
 	hid_device *dev = NULL;
-	int err;
-	wchar_t tmp[255];
 
-	dev = hid_open(IDENT_VENDOR_NUM, IDENT_PRODUCT_NUM, (wchar_t *) serial);
-	if (!dev) {
-		fprintf(stderr, "uHID device not found or there are permissions problems\n");
-		return NULL;
-	}
+	if (!deviceMatch)
+		deviceMatch = compatibleDevices;
 
-	err = hid_get_manufacturer_string(dev, tmp, 255);
-	if (err) {
-		fwprintf(stderr, L"Error quering manufacturer name: %s\n", hid_error(dev));
-		goto errclose;
-	}
+	struct hid_device_info *inf_list = hid_enumerate(0, 0);
+	struct hid_device_info *inf = inf_list;
+	struct hid_device_info *found = NULL;
 
-	if (wcscmp(tmp, IDENT_VENDOR_STRING)!=0) {
-		fprintf(stderr, "Unexpected manufacturer: %ls (expected: %ls); skipping device\n", tmp, IDENT_VENDOR_STRING);
-		goto errclose;
-	}
+	while (inf->next) {
+		struct uHidDeviceMatch *tmp = deviceMatch;
+		while (tmp->vendor) {
+			if (hidDevMatch(inf, tmp)) {
+				found = inf;
+				break;
+			}
 
-	if (!devId)
+			if (found)
+				break;
+
+			tmp++;
+		}
+		inf = inf->next;
+	};
+
+	if (!found)
 		goto bailout;
 
-	err = hid_get_product_string(dev, tmp, 255);
-	if (err) {
-		fwprintf(stderr, L"Error quering manufacturer name: %s\n", hid_error(dev));
-		goto errclose;
-	}
-
-	if (wcscmp(tmp, devId)!=0) {
-		fprintf(stderr, "Unexpected device name: %ls (expected: %ls); skipping device\n", tmp, IDENT_VENDOR_STRING);
-		goto errclose;
-	}
+	dev = hid_open_path(found->path);
+	if (!dev)
+		fprintf(stderr, "Failed to open a uHID device (Permissions problem?)\n");
 
 bailout:
+	hid_free_enumeration(inf_list);
 	return dev;
-
-errclose:
-	hid_close(dev);
-	return NULL;
 }
 
 
@@ -240,9 +279,9 @@ errclose:
  *
  * @return
  */
-UHID_API char *uispReadPart(hid_device *dev, int part, int *bytes_read)
+UHID_API char *uhidReadPart(hid_device *dev, int part, int *bytes_read)
 {
-	struct deviceInfo *inf = uispReadInfo(dev);
+	struct uHidDeviceInfo *inf = uhidReadInfo(dev);
 	if (!inf)
 		return NULL;
 	if (part <= 0)
@@ -290,10 +329,10 @@ errfreeinf:
  *
  * @return
  */
-UHID_API int uispWritePart(hid_device *dev, int part, const char *buf, int length)
+UHID_API int uhidWritePart(hid_device *dev, int part, const char *buf, int length)
 {
 	int ret=0;
-	struct deviceInfo *inf = uispReadInfo(dev);
+	struct uHidDeviceInfo *inf = uhidReadInfo(dev);
 	if (!inf)
 		return -ENOENT;
 	if (part <= 0)
@@ -336,9 +375,9 @@ UHID_API int uispWritePart(hid_device *dev, int part, const char *buf, int lengt
 	return ret;
 }
 
-UHID_API int uispLookupPart(hid_device *dev, const char *name)
+UHID_API int uhidLookupPart(hid_device *dev, const char *name)
 {
-	struct deviceInfo *inf = uispReadInfo(dev);
+	struct uHidDeviceInfo *inf = uhidReadInfo(dev);
 	if (!inf)
 		return -1;
 	int ret = -1;
@@ -353,10 +392,10 @@ UHID_API int uispLookupPart(hid_device *dev, const char *name)
 	return ret;
 }
 
-UHID_API int uispVerifyPart(hid_device *dev, int part, const char *buf, int len)
+UHID_API int uhidVerifyPart(hid_device *dev, int part, const char *buf, int len)
 {
 	int bytes;
-	void *pbuf = uispReadPart(dev, part, &bytes);
+	void *pbuf = uhidReadPart(dev, part, &bytes);
 
 	if (pbuf == NULL)
 		return -1;
@@ -366,10 +405,10 @@ UHID_API int uispVerifyPart(hid_device *dev, int part, const char *buf, int len)
 }
 
 
-UHID_API int uispReadPartToFile(hid_device *dev, int part, const char *filename)
+UHID_API int uhidReadPartToFile(hid_device *dev, int part, const char *filename)
 {
 	int bytes;
-	void *buf = uispReadPart(dev, part, &bytes);
+	void *buf = uhidReadPart(dev, part, &bytes);
 	if (buf == NULL)
 		return -1;
 
@@ -422,9 +461,9 @@ static ssize_t getFileContents(const char* filename, char **buf)
   }
 }
 
-UHID_API int uispWritePartFromFile(hid_device *dev, int part, const char *filename)
+UHID_API int uhidWritePartFromFile(hid_device *dev, int part, const char *filename)
 {
-        struct deviceInfo *inf = uispReadInfo(dev);
+        struct uHidDeviceInfo *inf = uhidReadInfo(dev);
         if (!inf)
                 return -1;
 
@@ -463,7 +502,7 @@ UHID_API int uispWritePartFromFile(hid_device *dev, int part, const char *filena
         if (len_file < len)
                 len = len_file;
 
-        ret = uispWritePart(dev, part, buf, len);
+        ret = uhidWritePart(dev, part, buf, len);
 
 errfreebuf:
         free(buf);
@@ -472,7 +511,7 @@ errfreeinf:
         return ret;
 }
 
-UHID_API int uispVerifyPartFromFile(hid_device *dev, int part, const char *filename)
+UHID_API int uhidVerifyPartFromFile(hid_device *dev, int part, const char *filename)
 {
 
 	ssize_t len_file;
@@ -481,34 +520,34 @@ UHID_API int uispVerifyPartFromFile(hid_device *dev, int part, const char *filen
   if (len_file <= 0)
     return -1;
 
-	return uispVerifyPart(dev, part, buf, len_file);
+	return uhidVerifyPart(dev, part, buf, len_file);
 
 }
 
 
-UHID_API void uispClose(hid_device *dev)
+UHID_API void uhidClose(hid_device *dev)
 {
 	hid_close(dev);
 }
 
-UHID_API void uispCloseAndRun(hid_device *dev, int part)
+UHID_API void uhidCloseAndRun(hid_device *dev, int part)
 {
 	char tmp[8];
 	tmp[0]=0x0;
 	tmp[1]=part;
 	hid_send_feature_report(dev, (unsigned char *) tmp, part);
-	uispClose(dev);
+	uhidClose(dev);
 }
 
 
-UHID_API void uispPrintInfo(struct deviceInfo *inf)
+UHID_API void uhidPrintInfo(struct uHidDeviceInfo *inf)
 {
 	int i;
 
 	printf("Partitions:        %d\n", inf->numParts);
 	printf("CPU Frequency:     %.1f Mhz\n", inf->cpuFreq / 10.0);
 	for (i=0; i<inf->numParts; i++) {
-		struct partInfo *p = &inf->parts[i];
+		struct uHidPartInfo *p = &inf->parts[i];
 		printf("%d. %s %d bytes (%d byte pages, %d bytes per packet)  \n",
 		       i, p->name, p->size, p->pageSize, p->ioSize);
 	}

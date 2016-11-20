@@ -114,7 +114,7 @@ static void check_and_open(hid_device **dev, const char *product, const char *se
 		mbstowcs(tmp, serial, strlen(serial));
 	}
 
-	*dev = uispOpen(NULL, NULL);
+	*dev = uhidOpen(NULL);
 	if (!*dev)
 		bailout(1);
 	if (tmp)
@@ -148,14 +148,14 @@ static void usage(const char *name)
 int main(int argc, char **argv)
 {
 	int ret = 0;
-	hid_device *uisp = NULL;
+	hid_device *uhid = NULL;
 	int part;
-	struct deviceInfo *inf;
+	struct uHidDeviceInfo *inf;
 
 	const char *product = NULL;
 	const char *serial = NULL;
 	const char *filename;
-	uispProgressCb(progressbar);
+	uhidProgressCb(progressbar);
 
 	if (argc == 1) {
 		usage(argv[0]);
@@ -181,33 +181,33 @@ int main(int argc, char **argv)
 			product = optarg;
 			break;
 		case 'i':
-			check_and_open(&uisp, product, serial);
-			inf = uispReadInfo(uisp);
-			uispPrintInfo(inf);
+			check_and_open(&uhid, product, serial);
+			inf = uhidReadInfo(uhid);
+			uhidPrintInfo(inf);
 			free(inf);
 			bailout(0);
 			break;
 		case 'r':
 			filename = optarg;
-			check_and_open(&uisp, product, serial);
-			part = uispLookupPart(uisp, partname);
+			check_and_open(&uhid, product, serial);
+			part = uhidLookupPart(uhid, partname);
 			if (part < 0) {
 				fprintf(stderr, "No such part");
 				bailout(1);
 			}
 			printf("Reading partition %d (%s) from %s\n", part, partname, filename);
-			bailout(uispReadPartToFile(uisp, part, filename));
+			bailout(uhidReadPartToFile(uhid, part, filename));
 			break;
 		case 'w':
 			filename = optarg;
-			check_and_open(&uisp, product, serial);
-			part = uispLookupPart(uisp, partname);
+			check_and_open(&uhid, product, serial);
+			part = uhidLookupPart(uhid, partname);
 			if (part < 0) {
 				fprintf(stderr, "No such part");
 				bailout(1);
 			}
 			printf("Writing partition %d (%s) from %s\n", part, partname, filename);
-			ret = uispWritePartFromFile(uisp, part, filename);
+			ret = uhidWritePartFromFile(uhid, part, filename);
 			printf("\n");
 			if (ret)
 				bailout(ret);
@@ -216,22 +216,22 @@ int main(int argc, char **argv)
 				break;
 		case 'v':
 			filename = optarg;
-			check_and_open(&uisp, product, serial);
-			part = uispLookupPart(uisp, partname);
+			check_and_open(&uhid, product, serial);
+			part = uhidLookupPart(uhid, partname);
 			if (part < 0) {
 				fprintf(stderr, "No such part");
 				bailout(1);
 			}
 			printf("Verifying partition %d (%s) from %s\n", part, partname, filename);
-			ret = uispVerifyPartFromFile(uisp, part, filename);
+			ret = uhidVerifyPartFromFile(uhid, part, filename);
 			if (ret ==0 )
 				printf("\n Verification completed without error\n");
 			else
 				printf("\n Something bad during verification \n");
 			bailout(ret);
 		case 'R':
-			check_and_open(&uisp, product, serial);
-			uispCloseAndRun(uisp, part);
+			check_and_open(&uhid, product, serial);
+			uhidCloseAndRun(uhid, part);
 			bailout(0);
 			break;
 		}
