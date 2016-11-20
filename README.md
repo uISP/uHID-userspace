@@ -105,19 +105,52 @@ C:
 cd C:\uHID
 mkdir build
 cd build
-cmake .. -G "MinGW Makefiles"
+cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=StaticRelease
 mingw32-make
 mingw32-make package
 ```
 
-At this point you'll have a zip with all the files. The uhidtool is linked
-statically, so it doesn't require much to run on a fresh system
-
+At this point you'll have a zip with all the files.
+-DCMAKE_BUILD_TYPE=StaticRelease make the resulting binary standalone
+so that you can just drop it somewhere convenient and use. The default behavior
+is to dynamically link against libuhid and mingw, which is not something you
+normally want on windows
 
 ## MAC
 
-TODO
+### Install commandline developer tools. Just opening the terminal and typing
+```
+gcc
+```
+will prompt you to do so (At least on Yosemite)
 
+### Install cmake from https://cmake.org/download
+
+### Add cmake to your path
+
+```
+sudo mkdir -p /usr/local/bin
+sudo /Applications/CMake.app/Contents/bin/cmake-gui --install=/usr/local/bin
+```
+
+### Get uHID sourcecode
+
+Either via zip from git hub or using git clone.
+
+```
+cd /path/to/uhid/source
+mkdir build
+cd build
+cmake .. -DCMAKE_BUILD_TYPE=StaticRelease
+mingw32-make
+mingw32-make package
+```
+
+### At this point you will end up with a shiny zip package
+
+-DCMAKE_BUILD_TYPE=StaticRelease make the resulting binary standalone
+so that you can just drop it to bin/ and use. The default behavior
+is to dynamically link against libuhid.
 
 # The SPEC
 
