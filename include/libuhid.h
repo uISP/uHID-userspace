@@ -1,6 +1,26 @@
-#ifndef LIBUISP_H
-#define LIBUISP_H
+#ifndef LIBUHID_H
+#define LIBUHID_H
 
+/*
+ *  uHID Universal MCU Bootloader. App loader tool.
+ *  Copyright (C) 2016  Andrew 'Necromant' Andrianov
+ *
+ *  This file is part of uHID project. uHID is loosely (very)
+ *  based on bootloadHID avr bootloader by Christian Starkjohann
+ *
+ *  uHID is free software: you can redistribute it and/or modify
+ *  it under the terms of the GNU General Public License as published by
+ *  the Free Software Foundation, either version 2 of the License, or
+ *  (at your option) any later version.
+ *
+ *  uHID is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ *  GNU General Public License for more details.
+ *
+ *  You should have received a copy of the GNU General Public License
+ *  along with uHID.  If not, see <http://www.gnu.org/licenses/>.
+*/
 #define UISP_PART_NAME_LEN  8
 #include <stdint.h>
 #include <hidapi/hidapi.h>

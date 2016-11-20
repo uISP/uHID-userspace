@@ -123,12 +123,26 @@ static void check_and_open(hid_device **dev, const char *product, const char *se
 
 static void usage(const char *name)
 {
+	/* Avoid showing long paths in windoze */
+	const char *nm = strrchr(name, '\\');
+	if (!nm)
+		nm = name;
+	else
+		nm++;
+
 	printf("uHID bootloader tool (c) Andrew 'Necromant' Andrianov 2016\n"
 	       "This is free software subject to GPLv2 license.\n\n"
 	       "Usage: \n"
-	       "%s --part eeprom --write file.bin\n"
-	       "%s --part eeprom --read  file.bin\n"
-	       "", name, name);
+	       "%s --help                      - This help message\n"
+				 "%s --info                      - Show info about device\n"
+	       "%s --part eeprom --write 1.bin - Write partition eeprom with 1.bin\n"
+	       "%s --part eeprom --read  1.bin - Read partition eeprom to 1.bin\n"
+				 "%s --run [flash]               - Execute code in partition [flash]\n"
+				 "                                 Optional, if supported by target MCU\n"
+				 "\n"
+				 "uHIDtool can read intel hex as well as binary. \n"
+				 "The filename extension should be .ihx or .hex for it to work\n"
+	       "", nm, nm, nm, nm, nm);
 }
 
 int main(int argc, char **argv)
