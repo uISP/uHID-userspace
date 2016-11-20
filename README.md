@@ -44,9 +44,21 @@ Currently AVR and nRF24LU1 are supported, if you want more - contribute!
 
 # Download binaries
 
-- TODO
+ZIP archives contain a static binary that doesn't need anything
+else to run. Just drop uhidtool[.exe] somewhere in your PATH and you are
+good to go.
+Mac and Linux users should also do a chmod +x on the binary, e.g.
 
-# Compiling
+```
+unzip pkg.zip
+cd pkg
+sudo cp bin/uhidtool /usr/local/bin
+sudo chmod +x /usr/local/bin/uhidtool
+```
+
+TODO: deb packages
+
+# Compiling from source
 
 ## Linux (sudo make install)
 
