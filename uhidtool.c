@@ -88,6 +88,16 @@ void progressbar(const char *label, int value, int max)
 	fflush(stdout);
 }
 
+static void bailout(int code)
+{
+/* A little feature for windoze junkies */
+#ifdef _WIN32
+	printf("Press any key to exit...\n");
+	getchar();
+#endif
+	exit(code);
+}
+
 static void check_and_open(hid_device **dev, const char *product, const char *serial)
 {
 	if (*dev)
@@ -99,14 +109,14 @@ static void check_and_open(hid_device **dev, const char *product, const char *se
 	  tmp = malloc(strlen(serial) * (sizeof(wchar_t) + 1));
 		if (!tmp) {
 			fprintf(stderr, "Out of memory\n");
-			exit(1);
+			bailout(1);
 		}
 		mbstowcs(tmp, serial, strlen(serial));
 	}
 
 	*dev = uispOpen(NULL, NULL);
 	if (!*dev)
-		exit(1);
+		bailout(1);
 	if (tmp)
 		free(tmp);
 }
@@ -133,6 +143,11 @@ int main(int argc, char **argv)
 	const char *filename;
 	uispProgressCb(progressbar);
 
+	if (argc == 1) {
+		usage(argv[0]);
+		bailout(1);
+	}
+
 	while (1) {
 		int option_index = 0;
 		int c;
@@ -143,6 +158,7 @@ int main(int argc, char **argv)
 		switch(c) {
 		case 'h':
 			usage(argv[0]);
+			bailout(1);
 			break;
 		case 'p':
 			partname = optarg;
@@ -155,7 +171,7 @@ int main(int argc, char **argv)
 			inf = uispReadInfo(uisp);
 			uispPrintInfo(inf);
 			free(inf);
-			return 0;
+			bailout(0);
 			break;
 		case 'r':
 			filename = optarg;
@@ -163,10 +179,10 @@ int main(int argc, char **argv)
 			part = uispLookupPart(uisp, partname);
 			if (part < 0) {
 				fprintf(stderr, "No such part");
-				exit(1);
+				bailout(1);
 			}
 			printf("Reading partition %d (%s) from %s\n", part, partname, filename);
-			return uispReadPartToFile(uisp, part, filename);
+			bailout(uispReadPartToFile(uisp, part, filename));
 			break;
 		case 'w':
 			filename = optarg;
@@ -174,13 +190,13 @@ int main(int argc, char **argv)
 			part = uispLookupPart(uisp, partname);
 			if (part < 0) {
 				fprintf(stderr, "No such part");
-				exit(1);
+				bailout(1);
 			}
 			printf("Writing partition %d (%s) from %s\n", part, partname, filename);
 			ret = uispWritePartFromFile(uisp, part, filename);
 			printf("\n");
 			if (ret)
-				return ret;
+				bailout(ret);
 
 			if (!verify)
 				break;
@@ -190,7 +206,7 @@ int main(int argc, char **argv)
 			part = uispLookupPart(uisp, partname);
 			if (part < 0) {
 				fprintf(stderr, "No such part");
-				exit(1);
+				bailout(1);
 			}
 			printf("Verifying partition %d (%s) from %s\n", part, partname, filename);
 			ret = uispVerifyPartFromFile(uisp, part, filename);
@@ -198,13 +214,13 @@ int main(int argc, char **argv)
 				printf("\n Verification completed without error\n");
 			else
 				printf("\n Something bad during verification \n");
-			return ret;
+			bailout(ret);
 		case 'R':
 			check_and_open(&uisp, product, serial);
 			uispCloseAndRun(uisp, part);
-			return 0;
+			bailout(0);
 			break;
 		}
 	}
-	return 0;
+	bailout(0);
 }

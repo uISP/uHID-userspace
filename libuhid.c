@@ -40,7 +40,7 @@ static wchar_t  IDENT_VENDOR_STRING[255]  =    L"uHID";
 static void (*progresscb)(const char *label, int cur, int max);
 
 
-void uispProgressCb(void (*cb)(const char *label, int cur, int max))
+void UHID_API uispProgressCb(void (*cb)(const char *label, int cur, int max))
 {
 	progresscb = cb;
 }
@@ -58,7 +58,7 @@ static void show_progress(const char *label, int cur, int max)
  * @param product
  * @param vstring
  */
-void uispOverrideLoaderInfo(int vendor, int product, const wchar_t *vstring)
+UHID_API void uispOverrideLoaderInfo(int vendor, int product, const wchar_t *vstring)
 {
 	IDENT_VENDOR_NUM = vendor;
 	IDENT_PRODUCT_NUM = product;
@@ -139,7 +139,7 @@ static ssize_t  parseIntelHex(const char *hexfile, char *buffer, int *startAddr,
  *
  * @return
  */
-struct deviceInfo *uispReadInfo(hid_device *dev)
+struct UHID_API deviceInfo *uispReadInfo(hid_device *dev)
 {
 	int len = 255;
 	int i;
@@ -184,7 +184,7 @@ error:
  *
  * @return
  */
-hid_device *uispOpen(const wchar_t *devId, const wchar_t *serial)
+UHID_API hid_device *uispOpen(const wchar_t *devId, const wchar_t *serial)
 {
 	hid_device *dev = NULL;
 	int err;
@@ -240,7 +240,7 @@ errclose:
  *
  * @return
  */
-char *uispReadPart(hid_device *dev, int part, int *bytes_read)
+UHID_API char *uispReadPart(hid_device *dev, int part, int *bytes_read)
 {
 	struct deviceInfo *inf = uispReadInfo(dev);
 	if (!inf)
@@ -290,7 +290,7 @@ errfreeinf:
  *
  * @return
  */
-int uispWritePart(hid_device *dev, int part, const char *buf, int length)
+UHID_API int uispWritePart(hid_device *dev, int part, const char *buf, int length)
 {
 	int ret=0;
 	struct deviceInfo *inf = uispReadInfo(dev);
@@ -336,7 +336,7 @@ int uispWritePart(hid_device *dev, int part, const char *buf, int length)
 	return ret;
 }
 
-int uispLookupPart(hid_device *dev, const char *name)
+UHID_API int uispLookupPart(hid_device *dev, const char *name)
 {
 	struct deviceInfo *inf = uispReadInfo(dev);
 	if (!inf)
@@ -353,7 +353,7 @@ int uispLookupPart(hid_device *dev, const char *name)
 	return ret;
 }
 
-int uispVerifyPart(hid_device *dev, int part, const char *buf, int len)
+UHID_API int uispVerifyPart(hid_device *dev, int part, const char *buf, int len)
 {
 	int bytes;
 	void *pbuf = uispReadPart(dev, part, &bytes);
@@ -366,7 +366,7 @@ int uispVerifyPart(hid_device *dev, int part, const char *buf, int len)
 }
 
 
-int uispReadPartToFile(hid_device *dev, int part, const char *filename)
+UHID_API int uispReadPartToFile(hid_device *dev, int part, const char *filename)
 {
 	int bytes;
 	void *buf = uispReadPart(dev, part, &bytes);
@@ -422,7 +422,7 @@ static ssize_t getFileContents(const char* filename, char **buf)
   }
 }
 
-int uispWritePartFromFile(hid_device *dev, int part, const char *filename)
+UHID_API int uispWritePartFromFile(hid_device *dev, int part, const char *filename)
 {
         struct deviceInfo *inf = uispReadInfo(dev);
         if (!inf)
@@ -472,7 +472,7 @@ errfreeinf:
         return ret;
 }
 
-int uispVerifyPartFromFile(hid_device *dev, int part, const char *filename)
+UHID_API int uispVerifyPartFromFile(hid_device *dev, int part, const char *filename)
 {
 
 	ssize_t len_file;
@@ -486,12 +486,12 @@ int uispVerifyPartFromFile(hid_device *dev, int part, const char *filename)
 }
 
 
-void uispClose(hid_device *dev)
+UHID_API void uispClose(hid_device *dev)
 {
 	hid_close(dev);
 }
 
-void uispCloseAndRun(hid_device *dev, int part)
+UHID_API void uispCloseAndRun(hid_device *dev, int part)
 {
 	char tmp[8];
 	tmp[0]=0x0;
@@ -501,7 +501,7 @@ void uispCloseAndRun(hid_device *dev, int part)
 }
 
 
-void uispPrintInfo(struct deviceInfo *inf)
+UHID_API void uispPrintInfo(struct deviceInfo *inf)
 {
 	int i;
 

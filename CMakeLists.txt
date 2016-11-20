@@ -9,11 +9,13 @@ SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wall -g -D_GNU_SOURCE=1")
 enable_testing()
 set(CPACK_GENERATOR "ZIP")
 include(CPack)
+include (GenerateExportHeader)
 
 if (WIN32)
   find_path(HIDAPI_DIR hidapi/hidapi.h ${CMAKE_SOURCE_DIR}/deps/hidapi ${CMAKE_SOURCE_DIR}/deps/hidapi-0.7.0 ${UHID_HIDAPI_DIR})
   if (HIDAPI_DIR-NOTFOUND)
     message(ERROR "Please download and unpack to hidapi to ${CMAKE_SOURCE_DIR}/deps/hidapi")
+    message(ERROR ".. or pass a valid -DUHID_HIDAPI_DIR= to cmake")
   else()
     message(STATUS "Using hidapi in ${HIDAPI_DIR}")
   endif()
@@ -24,7 +26,7 @@ if (WIN32)
 else()
   FIND_PACKAGE(PkgConfig)
   PKG_CHECK_MODULES(HIDAPI hidapi-libusb)
-  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC ")
 endif()
 
 set(SRCS ${SRCS} libuhid.c)
@@ -32,29 +34,37 @@ message("${SRCS}")
 INCLUDE_DIRECTORIES(
     ./include/
     ${HIDAPI_INCLUDE_DIRS}
+    ${CMAKE_BINARY_DIR}
 )
 
-
-ADD_LIBRARY(uhid OBJECT ${SRCS})
-ADD_LIBRARY(uhidstatic STATIC $<TARGET_OBJECTS:uhid>)
-SET_TARGET_PROPERTIES(uhidstatic PROPERTIES OUTPUT_NAME uhid)
-TARGET_LINK_LIBRARIES(uhidstatic
+set(UHID_EXPORT_GLUE ${CMAKE_BINARY_DIR}/uhid_export_glue.h)
+ADD_LIBRARY(uhidshared SHARED ${SRCS})
+GENERATE_EXPORT_HEADER(uhidshared
+             BASE_NAME UHID
+             EXPORT_MACRO_NAME UHID_API
+             EXPORT_FILE_NAME ${UHID_EXPORT_GLUE}
+             STATIC_DEFINE UHID_STATIC
+)
+TARGET_LINK_LIBRARIES(uhidshared
     ${HIDAPI_LIBRARIES}
 )
-
-ADD_LIBRARY(uhidshared SHARED $<TARGET_OBJECTS:uhid>)
 SET_TARGET_PROPERTIES(uhidshared PROPERTIES OUTPUT_NAME uhid)
 SET_TARGET_PROPERTIES(uhidshared PROPERTIES SOVERSION ${PROJECT_VERSION}
   VERSION ${UHID_API_VERSION})
 
-TARGET_LINK_LIBRARIES(uhidshared
+
+ADD_LIBRARY(uhidstatic STATIC ${SRCS})
+SET_TARGET_PROPERTIES(uhidstatic PROPERTIES OUTPUT_NAME uhid)
+set_target_properties(uhidstatic PROPERTIES
+  COMPILE_FLAGS -DUHID_STATIC)
+TARGET_LINK_LIBRARIES(uhidstatic
     ${HIDAPI_LIBRARIES}
 )
 
 ADD_EXECUTABLE(uhidtool uhidtool.c)
-
-#Static link for windows
-if(WIN32)
+if (CMAKE_BUILD_TYPE MATCHES "StaticRelease")
+  set_target_properties(uhidtool PROPERTIES
+    COMPILE_FLAGS -DUHID_STATIC)
   TARGET_LINK_LIBRARIES(uhidtool uhidstatic)
 else()
   TARGET_LINK_LIBRARIES(uhidtool uhidshared)
@@ -86,7 +96,7 @@ file(GLOB UHID_HEADERS
     "${CMAKE_SOURCE_DIR}/include/*"
 )
 
-INSTALL(FILES ${UHID_HEADERS}
+INSTALL(FILES ${UHID_HEADERS} ${UHID_EXPORT_GLUE}
 DESTINATION include/${CMAKE_LIBRARY_PATH}/uhid-${PROJECT_VERSION}/)
 
 

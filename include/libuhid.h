@@ -2,6 +2,7 @@
 #define LIBUISP_H
 
 #define UISP_PART_NAME_LEN  8
+#include <stdint.h>
 #include <hidapi/hidapi.h>
 
 struct partInfo {
@@ -19,23 +20,21 @@ struct deviceInfo {
 	struct partInfo parts[];
 } __attribute__((packed));
 
+#include "uhid_export_glue.h"
 
+UHID_API struct deviceInfo *uispReadInfo(hid_device *dev);
+UHID_API hid_device *uispOpen(const wchar_t *devId, const wchar_t *serial);
+UHID_API char *uispReadPart(hid_device *dev, int part, int *bytes_read);
+UHID_API int uispWritePart(hid_device *dev, int part, const char *buf, int length);
+UHID_API void uispClose(hid_device *dev);
+UHID_API void uispCloseAndRun(hid_device *dev, int part);
+UHID_API void uispPrintInfo(struct deviceInfo *inf);
+UHID_API void uispOverrideLoaderInfo(int vendor, int product, const wchar_t *vstring);
+UHID_API void uispProgressCb(void (*cb)(const char *label, int cur, int max));
+UHID_API int uispWritePartFromFile(hid_device *dev, int part, const char *filename);
+UHID_API int uispReadPartToFile(hid_device *dev, int part, const char *filename);
+UHID_API int uispVerifyPart(hid_device *dev, int part, const char *buf, int len);
+UHID_API int uispVerifyPartFromFile(hid_device *dev, int part, const char *filename);
+UHID_API int uispLookupPart(hid_device *dev, const char *name);
 
-struct deviceInfo *uispReadInfo(hid_device *dev);
-hid_device *uispOpen(const wchar_t *devId, const wchar_t *serial);
-char *uispReadPart(hid_device *dev, int part, int *bytes_read);
-int uispWritePart(hid_device *dev, int part, const char *buf, int length);
-void uispClose(hid_device *dev);
-void uispCloseAndRun(hid_device *dev, int part);
-
-void uispPrintInfo(struct deviceInfo *inf);
-
-void uispOverrideLoaderInfo(int vendor, int product, const wchar_t *vstring);
-void uispProgressCb(void (*cb)(const char *label, int cur, int max));
-int uispWritePartFromFile(hid_device *dev, int part, const char *filename);
-int uispReadPartToFile(hid_device *dev, int part, const char *filename);
-
-int uispVerifyPart(hid_device *dev, int part, const char *buf, int len);
-int uispVerifyPartFromFile(hid_device *dev, int part, const char *filename);
-int uispLookupPart(hid_device *dev, const char *name);
 #endif
