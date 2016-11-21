@@ -71,15 +71,12 @@ ADD_LIBRARY(uhidstatic STATIC ${SRCS})
 SET_TARGET_PROPERTIES(uhidstatic PROPERTIES OUTPUT_NAME uhid)
 set_target_properties(uhidstatic PROPERTIES
   COMPILE_FLAGS -DUHID_STATIC)
-TARGET_LINK_LIBRARIES(uhidstatic
-    ${HIDAPI_LIBRARIES}
-)
 
 ADD_EXECUTABLE(uhidtool uhidtool.c)
 if (CMAKE_BUILD_TYPE MATCHES "StaticRelease")
   set_target_properties(uhidtool PROPERTIES
     COMPILE_FLAGS -DUHID_STATIC)
-  TARGET_LINK_LIBRARIES(uhidtool uhidstatic)
+  TARGET_LINK_LIBRARIES(uhidtool uhidstatic ${HIDAPI_STATIC_LIBRARIES})
 else()
   TARGET_LINK_LIBRARIES(uhidtool uhidshared)
 endif()

@@ -20,6 +20,12 @@ elseif(APPLE)
   set(HIDAPI_LIBRARIES "-framework IOKit -framework CoreFoundation")
 else()
   FIND_PACKAGE(PkgConfig)
-  PKG_CHECK_MODULES(HIDAPI hidapi-libusb)
+  PKG_CHECK_MODULES(HIDAPI hidapi-libusb REQUIRED)
+  #hidapi-libusb pkg-config file misses the libusb dependency
+  PKG_CHECK_MODULES(LIBUSB libusb-1.0 REQUIRED)
   add_cflag_if_supported( "-fPIC ")
+  #Static releases are messy
+  if (CMAKE_BUILD_TYPE MATCHES "StaticRelease")
+    set(HIDAPI_STATIC_LIBRARIES "-Wl,-Bstatic ${HIDAPI_LDFLAGS} ${LIBUSB_LDFLAGS} -Wl,-Bdynamic -lpthread -ludev")
+  endif()
 endif()
