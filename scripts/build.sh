@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+
+export PATH=$PATH:/usr/local/bin
+rm -Rf build
+mkdir build
+cd build
+
+if [ "`uname`" == "Darwin" ]
+    EXTRAFLAGS="-DUHID_HIDAPI_DIR=/devel/hidapi-0.7.0/"
+fi
+
+cmake .. -DCMAKE_BUILD_TYPE=StaticRelease $EXTRAFLAGS
+make
+ctest --no-compress-output -T Test || true
+make package
