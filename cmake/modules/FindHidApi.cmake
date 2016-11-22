@@ -1,6 +1,8 @@
 # TODO: udev/libusb checks for systems missing pkg-config
-#
-#
+# 1. check if hidapi needs libusb
+# 2. check if libusb needs udev
+# 3. check if hidapi needs pthread
+
 macro(check_bundled_hidapi_package)
   find_path(HIDAPI_DIR hidapi/hidapi.h NO_DEFAULT_PATH  PATHS ${CMAKE_SOURCE_DIR}/deps/hidapi ${CMAKE_SOURCE_DIR}/deps/hidapi-0.7.0 ${UHID_HIDAPI_DIR})
   if (NOT HIDAPI_DIR)
@@ -34,7 +36,7 @@ endif()
 FIND_PACKAGE(PkgConfig)
 if (PKGCONFIG_FOUND)
   PKG_CHECK_MODULES(HIDAPI hidapi-libusb)
-  if (HIDAPI_FOUND AND CMAKE_BUILD_TYPE MATCHES "StaticRelease")
+  if (CMAKE_BUILD_TYPE MATCHES "StaticRelease")
     PKG_CHECK_MODULES(LIBUSB libusb-1.0)
     PKG_CHECK_MODULES(UDEV libudev)
   endif()
@@ -43,7 +45,7 @@ endif()
 
 if((NOT HIDAPI_FOUND))
   message(STATUS "hidapi not found via pkg-config, trying find_library()")
-  find_library(HIDAPI NAMES hidapi-libusb)
+  find_library(HIDAPI NAMES hidapi hidapi-raw hidapi-libusb)
   if (NOT HIDAPI)
     message(STATUS "Failed to find system installation of hidapi")
   else()
@@ -54,8 +56,15 @@ if((NOT HIDAPI_FOUND))
       set(LIBUSB_FOUND YES)
       set(LIBUSB_LIBRARIES "${LIBUSB}")
     endif()
+    if (NOT ICONV_FOUND)
+      find_library(ICONV iconv)
+      message(STATUS "Found (manually) iconv: ${ICONV}")
+      set(ICONV_FOUND YES)
+      set(ICONV_LIBRARIES "${ICONV}")
+    endif()
+
     set(HIDAPI_LIBRARIES "${HIDAPI}")
-    set(HIDAPI_STATIC_LIBRARIES ${HIDAPI} ${LIBUSB_LIBRARIES})
+    set(HIDAPI_STATIC_LIBRARIES ${HIDAPI} ${LIBUSB_LIBRARIES} ${ICONV_LIBRARIES} -lpthread)
     set(HIDAPI_FOUND YES)
     find_path(HIDAPI_INCLUDE_DIRS hidapi/hidapi.h)
     message(STATUS "Include files in: ${HIDAPI_INCLUDE_DIRS}")

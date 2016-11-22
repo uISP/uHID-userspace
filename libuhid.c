@@ -218,6 +218,11 @@ UHID_API struct hid_device_info *uhidListDevices(struct uHidDeviceMatch *deviceM
 	return NULL;
 }
 
+UHID_API hid_device *uhidOpenByPath(const char *path)
+{
+		return hid_open_path(path);
+}
+
 /**
  * Open a uHID device. if @deviceMatch table is supplied uHid will find
  * a device described there.
