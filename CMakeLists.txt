@@ -1,6 +1,16 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_SOURCE_DIR}/cmake/modules")
 
+if (CROSS_COMPILE MATCHES "x86")
+    message(STATUS "Will build 32-bit binaries!")
+    set(CMAKE_TOOLCHAIN_FILE "cmake/cross/i686.cmake")
+elseif(CROSS_COMPILE MATCHES "x86_64")
+elseif(CROSS_COMPILE)
+    # Full-blown cross-compilation with external sysroot
+    message(STATUS "We're cross-compiling!")
+    set(CMAKE_TOOLCHAIN_FILE "cmake/cross/LinuxCrossCompile.cmake")
+endif()
+
 PROJECT(uhid)
 SET(PROJECT_VERSION   0.2.1)
 SET(UHID_API_VERSION  2)
@@ -15,7 +25,7 @@ else()
   set(CPACK_GENERATOR "TGZ")
 endif()
 
-set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${CMAKE_SYSTEM_NAME}-${CMAKE_BUILD_TYPE}-${PROJECT_VERSION}")
+set(CPACK_PACKAGE_FILE_NAME "${PROJECT_NAME}-${CMAKE_SYSTEM_NAME}-${CMAKE_SYSTEM_PROCESSOR}-${CMAKE_BUILD_TYPE}-${PROJECT_VERSION}")
 
 include(CPack)
 include (GenerateExportHeader)
