@@ -1,10 +1,10 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_SOURCE_DIR}/cmake/modules")
 
-if (CROSS_COMPILE MATCHES "x86")
+if(CROSS_COMPILE MATCHES "x86_64")
+elseif (CROSS_COMPILE MATCHES "x86")
     message(STATUS "Will build 32-bit binaries!")
     set(CMAKE_TOOLCHAIN_FILE "cmake/cross/i686.cmake")
-elseif(CROSS_COMPILE MATCHES "x86_64")
 elseif(CROSS_COMPILE)
     # Full-blown cross-compilation with external sysroot
     message(STATUS "We're cross-compiling!")
