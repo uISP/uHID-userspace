@@ -7,7 +7,7 @@ if [ "`uname`" == "Darwin" ]; then
     EXTRAFLAGS="-DUHID_HIDAPI_DIR=/devel/hidapi-0.7.0/"
 fi
 
-cmake .. -DCMAKE_BUILD_TYPE=StaticRelease $EXTRAFLAGS
+cmake .. -DCMAKE_BUILD_TYPE=StaticRelease $EXTRAFLAGS $*
 make
 ctest --no-compress-output -T Test || true
 make package
