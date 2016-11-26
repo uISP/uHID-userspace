@@ -52,6 +52,9 @@ static struct uHidDeviceMatch compatibleDevices[] = {
 
 static void (*progresscb)(const char *label, int cur, int max);
 
+#define REPORT_ID_RUN  0
+#define REPORT_ID_INFO 1
+#define REPORT_ID_PART(n) (2 + n)
 
 void UHID_API uhidProgressCb(void (*cb)(const char *label, int cur, int max))
 {
@@ -142,25 +145,29 @@ UHID_API struct uHidDeviceInfo *uhidReadInfo(hid_device *dev)
 {
 	int len = 255;
 	int i;
-	struct uHidDeviceInfo *inf = calloc(len, 1);
-	if (!inf)
+	char *tmp = calloc(len, 1);
+
+	if (!tmp)
 		goto error;
 
-	len = hid_get_feature_report(dev, (unsigned char *)inf, 255);
+	tmp[0] = REPORT_ID_INFO;
+	len = hid_get_feature_report(dev, (unsigned char *)tmp, 255);
 	if (len < 0) {
 		fprintf(stderr, "Error reading info struct: %ls\n", hid_error(dev));
 		goto error;
 	}
+	struct uHidDeviceInfo *inf = (struct uHidDeviceInfo *) tmp;
+
 
 	/* Sanity checking and force strings end with zeroes just in case */
 	if ((len < sizeof(struct uHidDeviceInfo)) ||
 	    (len < sizeof(struct uHidDeviceInfo) + inf->numParts * sizeof(struct uHidPartInfo))) {
 		fprintf(stderr, "Short-read on uHidDeviceInfo - bad bootloader version?\n");
-		fprintf(stderr, "Expected %lu bytes, got %d bytes (%lu + %d * %lu)\n",
-			sizeof(struct uHidDeviceInfo) + inf->numParts * sizeof(struct uHidPartInfo),
+		fprintf(stderr, "Expected %ld bytes, got %d bytes (%ld + %d * %ld)\n",
+			(long) sizeof(struct uHidDeviceInfo) + inf->numParts * sizeof(struct uHidPartInfo),
 			len,
-			sizeof(struct uHidDeviceInfo), 2, sizeof(struct uHidPartInfo));
-		exit(1);
+			(long) sizeof(struct uHidDeviceInfo), inf->numParts, (long) sizeof(struct uHidPartInfo));
+		//exit(1);
 	}
 
 	for (i=0; i<inf->numParts; i++) {
@@ -169,8 +176,8 @@ UHID_API struct uHidDeviceInfo *uhidReadInfo(hid_device *dev)
 
 	return inf;
 error:
-	if (inf)
-		free(inf);
+	if (tmp)
+		free(tmp);
 	return NULL;
 
 }
@@ -312,20 +319,20 @@ UHID_API char *uhidReadPart(hid_device *dev, int part, int *bytes_read)
 	struct uHidDeviceInfo *inf = uhidReadInfo(dev);
 	if (!inf)
 		return NULL;
-	if (part <= 0)
+	if (part < 0)
 		return NULL;
 	if (part > inf->numParts)
 		return NULL;
 
-	uint32_t size = inf->parts[part-1].size;
+	uint32_t size = inf->parts[part].size;
 	unsigned char *tmp = malloc(size);
 	if (!tmp)
 		goto errfreeinf;
 
 	int pos = 0;
 	while (pos < size) {
-		int len = min_t(int, size - pos, inf->parts[part-1].ioSize);
-		tmp[pos] = part;
+		int len = min_t(int, size - pos, inf->parts[part].ioSize);
+		tmp[pos] = REPORT_ID_PART(part);
 		len = hid_get_feature_report(dev, &tmp[pos], len);
 		if (len < 0)
 					goto errfreetmp;
@@ -363,13 +370,13 @@ UHID_API int uhidWritePart(hid_device *dev, int part, const char *buf, int lengt
 	struct uHidDeviceInfo *inf = uhidReadInfo(dev);
 	if (!inf)
 		return -ENOENT;
-	if (part <= 0)
+	if (part < 0)
 		return -ENOENT;
 	if (part > inf->numParts)
 		return -ENOENT;
 
-	int pageSize = inf->parts[part-1].pageSize;
-	uint32_t size = inf->parts[part-1].size;
+	int pageSize = inf->parts[part].pageSize;
+	uint32_t size = inf->parts[part].size;
 	if (length > size) {
 		printf("WARNING: Input file buffer exceeds the target partition size\n");
 		printf("WARNING: The data will be truncated\n");
@@ -380,12 +387,13 @@ UHID_API int uhidWritePart(hid_device *dev, int part, const char *buf, int lengt
 	if (size % pageSize)
 		size += pageSize - (size % pageSize);
 
-	char *destbuf = calloc(1, inf->parts[part-1].ioSize + 1);
-	destbuf[0]=part;
+	char *destbuf = calloc(1, inf->parts[part].ioSize + 1);
+	destbuf[0] = REPORT_ID_PART(part);
+	printf("repid %d\n", destbuf[0]);
 
 	int pos = 0;
 	while (pos < size) {
-		int len = min_t(int, size - pos, inf->parts[part-1].ioSize);
+		int len = min_t(int, size - pos, inf->parts[part].ioSize);
 		memcpy(&destbuf[1], &buf[pos], len);
 		len = hid_send_feature_report(dev, (unsigned char*) destbuf, len + 1);
 		if (len < 0) {
@@ -412,7 +420,7 @@ UHID_API int uhidLookupPart(hid_device *dev, const char *name)
 	int i;
 	for (i=0; i < inf->numParts; i++) {
 		if (strcmp(name, (char *) inf->parts[i].name)==0) {
-			ret = i + 1;
+			ret = i;
 			break;
 		}
 	}
@@ -500,7 +508,7 @@ UHID_API int uhidWritePartFromFile(hid_device *dev, int part, const char *filena
 
         int ret = -EIO;
         ssize_t len_file;
-        ssize_t len = inf->parts[part-1].size;
+        ssize_t len = inf->parts[part].size;
         char *buf;
 
         if (!guessIfIntelHex(filename))
@@ -525,10 +533,14 @@ UHID_API int uhidWritePartFromFile(hid_device *dev, int part, const char *filena
                   goto errfreebuf;
         }
 
-        printf("Length: %zd bytes\n", len_file);
-
         if (len_file < len)
                 len = len_file;
+		if (len_file > len) {
+			printf("WARN: File too big for partition, truncated! (%d > %d)\n",
+			len_file, len);
+		}
+
+		printf("Will write %zd bytes\n", len);
 
         ret = uhidWritePart(dev, part, buf, len);
 
