@@ -36,7 +36,7 @@ static struct uHidDeviceMatch compatibleDevices[] = {
 		{
 			/* Necromant's VID/PID for bootloading */
 			.vendor  = 0x1d50,
-		  .product = 0x6032,
+		    .product = 0x6032,
 			.vendorName = L"uHID",
 	  },
 		{
@@ -179,21 +179,44 @@ error:
 static int hidDevMatch(struct hid_device_info *inf,
 											struct uHidDeviceMatch *deviceMatch)
 {
+	fprintf(stderr, "check: 0x%x:0x%x m:%ls p:%ls s:%ls\n",
+		inf->vendor_id, inf->product_id,
+		inf->manufacturer_string,
+		inf->product_string,
+		inf->serial_number
+	);
+	fprintf(stderr, "against: 0x%x:0x%x m:%ls p:%ls s:%ls\n",
+		deviceMatch->vendor, deviceMatch->product,
+		deviceMatch->vendorName,
+		deviceMatch->productName,
+		deviceMatch->serialNumber
+	);
+
+
 	if (inf->vendor_id != deviceMatch->vendor)
 		return 0;
 
 	if (inf->product_id != deviceMatch->product)
 		return 0;
 
+	if (deviceMatch->vendorName && !inf->manufacturer_string)
+		return 0;
+
 	if (deviceMatch->vendorName &&
 			(wcscmp(inf->manufacturer_string, deviceMatch->vendorName)!=0))
 			return 0;
+
+	if (deviceMatch->productName && !inf->product_string)
+		return 0;
 
 	if (deviceMatch->productName &&
 			(wcscmp(inf->product_string, deviceMatch->productName)!=0))
 			return 0;
 
-	if (deviceMatch->productName &&
+	if (deviceMatch->serialNumber && !inf->serial_number)
+		return 0;
+
+	if (deviceMatch->serialNumber &&
   		(wcscmp(inf->serial_number, deviceMatch->serialNumber)!=0))
 			return 0;
 
@@ -245,7 +268,7 @@ UHID_API hid_device *uhidOpen(struct uHidDeviceMatch *deviceMatch)
 	struct hid_device_info *inf = inf_list;
 	struct hid_device_info *found = NULL;
 
-	while (inf->next) {
+	while (inf) {
 		struct uHidDeviceMatch *tmp = deviceMatch;
 		while (tmp->vendor) {
 			if (hidDevMatch(inf, tmp)) {
@@ -364,13 +387,13 @@ UHID_API int uhidWritePart(hid_device *dev, int part, const char *buf, int lengt
 	while (pos < size) {
 		int len = min_t(int, size - pos, inf->parts[part-1].ioSize);
 		memcpy(&destbuf[1], &buf[pos], len);
-		len = hid_send_feature_report(dev, (unsigned char*) destbuf, len);
+		len = hid_send_feature_report(dev, (unsigned char*) destbuf, len + 1);
 		if (len < 0) {
 			ret = -EIO;
 			break;
 		}
 
-		pos+=len;
+		pos += len - 1 ;
 		show_progress("Writing", pos, size);
 	}
 
