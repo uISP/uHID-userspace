@@ -586,15 +586,15 @@ UHID_API int uhidCloseAndRun(hid_device *dev, int part)
 	if (!inf)
 		goto bailout;
 	
-	char tmp[256];
+	int ioSize = inf->parts[0].ioSize;
+	char *tmp = alloca(ioSize);
 	tmp[0]=REPORT_ID_INFO;
 	tmp[1]=part;
-	int len = hid_send_feature_report(dev, (unsigned char *) tmp, 256);
-	if (len < 0) {
-		printf("error: %ls\n", hid_error(dev));
-		goto bailout;
-	}
-
+	ret = hid_send_feature_report(dev, (unsigned char *) tmp, ioSize + 1);
+	/*  Silently ignore all errors. The device will disconnect perhaps  before the 
+	 *	feature report is completed 
+	 */
+	
 	ret = 0;
 bailout:
 	uhidClose(dev);
