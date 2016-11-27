@@ -342,7 +342,7 @@ UHID_API char *uhidReadPart(hid_device *dev, int part, int *bytes_read)
 			printf("hid_get_feature_report failed: %ls \n", hid_error(dev));	
 			goto errfreetmp;
 		}
-		pos +=ioSize;
+		pos +=len;
 		show_progress("Reading", pos, size);
 	}
 
