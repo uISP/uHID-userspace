@@ -30,6 +30,10 @@
 #include <hidapi/hidapi.h>
 #include <libuhid.h>
 
+#ifdef _WIN32
+#include <malloc.h>	/* for alloca() */
+#endif
+
 
 static struct uHidDeviceMatch compatibleDevices[] = {
 		{
