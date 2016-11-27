@@ -327,7 +327,7 @@ UHID_API char *uhidReadPart(hid_device *dev, int part, int *bytes_read)
 		return NULL;
 
 	uint32_t size = inf->parts[part].size;
-	uint32_t ioSize = inf->parts[part].ioRdSize;
+	uint32_t ioSize = inf->parts[part].ioSize;
 	unsigned char *tmp = malloc(size + 1);
 	if (!tmp)
 		goto errfreeinf;
@@ -379,7 +379,7 @@ UHID_API int uhidWritePart(hid_device *dev, int part, const char *buf, int lengt
 		return -ENOENT;
 
 	int pageSize = inf->parts[part].pageSize;
-	int ioSize = inf->parts[part].ioWrSize + 1;
+	int ioSize = inf->parts[part].ioSize;
 	uint32_t size = inf->parts[part].size;
 	if (length > size) {
 		printf("WARNING: Input file buffer exceeds the target partition size\n");
@@ -396,15 +396,15 @@ UHID_API int uhidWritePart(hid_device *dev, int part, const char *buf, int lengt
 
 	int pos = 0;
 	while (pos < size) {
-		int len = min_t(int, size - pos, ioSize-1);
-		memcpy(&destbuf[1], &buf[pos], len + 1);
-		len = hid_send_feature_report(dev, (unsigned char*) destbuf, len + 1);
+		int len = min_t(int, size - pos, ioSize);
+		memcpy(&destbuf[1], &buf[pos], len);
+		len = hid_send_feature_report(dev, (unsigned char*) destbuf, len+1);
 		if (len < 0) {
 			ret = -EIO;
 			break;
 		}
 
-		pos += len - 1;
+		pos += len-1;
 		show_progress("Writing", pos, size);
 	}
 
@@ -593,7 +593,7 @@ UHID_API void uhidPrintInfo(struct uHidDeviceInfo *inf)
 	printf("CPU Frequency:     %.1f Mhz\n", inf->cpuFreq / 10.0);
 	for (i=0; i<inf->numParts; i++) {
 		struct uHidPartInfo *p = &inf->parts[i];
-		printf("%d. %s %d bytes (pagesize: %d ioWrSize: %d ioRdSize: %d)  \n",
-		       i, p->name, p->size, p->pageSize, p->ioWrSize, p->ioRdSize);
+		printf("%d. %s %d bytes (pageSize: %d ioSize: %d)  \n",
+		       i, p->name, p->size, p->pageSize, p->ioSize);
 	}
 }

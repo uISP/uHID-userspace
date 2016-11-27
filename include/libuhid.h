@@ -37,12 +37,12 @@ struct uHidDeviceMatch {
 struct uHidPartInfo {
 	uint16_t      pageSize;
 	uint32_t      size;
-	uint8_t       ioRdSize;
-    uint8_t       ioWrSize;
+	uint8_t       ioSize;
 	uint8_t       name[UISP_PART_NAME_LEN];
 }  __attribute__((packed));
 
 struct uHidDeviceInfo {
+    uint8_t       version;
 	uint8_t       numParts;
 	uint8_t       cpuFreq;
 	struct uHidPartInfo parts[];
