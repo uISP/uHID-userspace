@@ -56,7 +56,7 @@ UHID_API hid_device *uhidOpen(struct uHidDeviceMatch *deviceMatch);
 UHID_API char *uhidReadPart(hid_device *dev, int part, int *bytes_read);
 UHID_API int uhidWritePart(hid_device *dev, int part, const char *buf, int length);
 UHID_API void uhidClose(hid_device *dev);
-UHID_API void uhidCloseAndRun(hid_device *dev, int part);
+UHID_API int uhidCloseAndRun(hid_device *dev, int part);
 UHID_API void uhidPrintInfo(struct uHidDeviceInfo *inf);
 UHID_API struct hid_device_info *uhidListDevices(struct uHidDeviceMatch *deviceMatch);
 UHID_API void uhidProgressCb(void (*cb)(const char *label, int cur, int max));

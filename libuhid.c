@@ -24,7 +24,6 @@
 #include <stdlib.h>
 #include <stdint.h>
 #include <errno.h>
-
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -580,13 +579,26 @@ UHID_API void uhidClose(hid_device *dev)
 	hid_close(dev);
 }
 
-UHID_API void uhidCloseAndRun(hid_device *dev, int part)
+UHID_API int uhidCloseAndRun(hid_device *dev, int part)
 {
-	char tmp[8];
-	tmp[0]=0x0;
+	int ret = -1;
+	struct uHidDeviceInfo *inf = uhidReadInfo(dev);
+	if (!inf)
+		goto bailout;
+	
+	char tmp[256];
+	tmp[0]=REPORT_ID_INFO;
 	tmp[1]=part;
-	hid_send_feature_report(dev, (unsigned char *) tmp, 8);
+	int len = hid_send_feature_report(dev, (unsigned char *) tmp, 256);
+	if (len < 0) {
+		printf("error: %ls\n", hid_error(dev));
+		goto bailout;
+	}
+
+	ret = 0;
+bailout:
 	uhidClose(dev);
+	return ret;
 }
 
 
