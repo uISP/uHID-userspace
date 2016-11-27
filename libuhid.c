@@ -585,7 +585,7 @@ UHID_API void uhidCloseAndRun(hid_device *dev, int part)
 	char tmp[8];
 	tmp[0]=0x0;
 	tmp[1]=part;
-	hid_send_feature_report(dev, (unsigned char *) tmp, part);
+	hid_send_feature_report(dev, (unsigned char *) tmp, 8);
 	uhidClose(dev);
 }
 
