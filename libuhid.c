@@ -547,7 +547,7 @@ UHID_API int uhidWritePartFromFile(hid_device *dev, int part, const char *filena
         if (len_file < len)
                 len = len_file;
 		if (len_file > len) {
-			printf("WARN: File too big for partition, truncated! (%d > %d)\n",
+			printf("WARN: File too big for partition, truncated! (%zd > %zd)\n",
 			len_file, len);
 		}
 
@@ -585,16 +585,16 @@ UHID_API int uhidCloseAndRun(hid_device *dev, int part)
 	struct uHidDeviceInfo *inf = uhidReadInfo(dev);
 	if (!inf)
 		goto bailout;
-	
+
 	int ioSize = inf->parts[0].ioSize;
 	char *tmp = alloca(ioSize);
 	tmp[0]=REPORT_ID_INFO;
 	tmp[1]=part;
 	ret = hid_send_feature_report(dev, (unsigned char *) tmp, ioSize + 1);
-	/*  Silently ignore all errors. The device will disconnect perhaps  before the 
-	 *	feature report is completed 
+	/*  Silently ignore all errors. The device will disconnect perhaps  before the
+	 *	feature report is completed
 	 */
-	
+
 	ret = 0;
 bailout:
 	uhidClose(dev);
