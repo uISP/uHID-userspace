@@ -334,13 +334,15 @@ UHID_API char *uhidReadPart(hid_device *dev, int part, int *bytes_read)
 
 	int pos = 0;
 	while (pos < size) {
-    /* Workaround hidapi bug */
-	int len = ioSize;
+		/* Account for the extra report byte */
+		int len = ioSize + 1;
 		tmp[pos] = REPORT_ID_PART(part);
 		len = hid_get_feature_report(dev, &tmp[pos], len);
-		if (len < 0)
-					goto errfreetmp;
-		pos +=len;
+		if (len < 0) {
+			printf("hid_get_feature_report failed: %ls \n", hid_error(dev));	
+			goto errfreetmp;
+		}
+		pos +=ioSize;
 		show_progress("Reading", pos, size);
 	}
 
@@ -391,20 +393,24 @@ UHID_API int uhidWritePart(hid_device *dev, int part, const char *buf, int lengt
 	if (size % pageSize)
 		size += pageSize - (size % pageSize);
 
-	char *destbuf = calloc(1, ioSize);
-	destbuf[0] = REPORT_ID_PART(part);
+	char *destbuf = calloc(1, ioSize+1);
+
 
 	int pos = 0;
 	while (pos < size) {
-		int len = min_t(int, size - pos, ioSize);
+		int len = ioSize;
+
+		destbuf[0] = REPORT_ID_PART(part);
 		memcpy(&destbuf[1], &buf[pos], len);
+
 		len = hid_send_feature_report(dev, (unsigned char*) destbuf, len+1);
 		if (len < 0) {
+			printf("hid_send_feature_report failed: %ls\n", hid_error(dev));
 			ret = -EIO;
 			break;
 		}
-
-		pos += len-1;
+		printf("%d bytes written @ %d\n", len, pos);
+		pos += ioSize;
 		show_progress("Writing", pos, size);
 	}
 
