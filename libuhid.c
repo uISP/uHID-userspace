@@ -552,8 +552,6 @@ UHID_API int uhidWritePartFromFile(hid_device *dev, int part, const char *filena
 			len_file, len);
 		}
 
-		printf("Will write %zd bytes\n", len);
-
         ret = uhidWritePart(dev, part, buf, len);
 
 errfreebuf:

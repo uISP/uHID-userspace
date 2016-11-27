@@ -39,23 +39,26 @@ static  int verify = 1;
 static 	const char *partname;
 enum {
 	OP_NONE = 0,
+	OP_INFO,
+	OP_LIST,
 	OP_READ,
 	OP_WRITE,
-	OP_VFY
+	OP_VERIFY
 };
 
 static struct option long_options[] =
 {
 	/* These options set a flag. */
-	{"help",     no_argument,       0, 'h'},
-	{"part",     required_argument, 0, 'p'},
-	{"write",    required_argument, 0, 'w'},
-	{"read",     required_argument, 0, 'r'},
-	{"verify",   required_argument, 0, 'v'},
-	{"product",  required_argument, 0, 'P'},
-	{"serial",   required_argument, 0, 'S'},
-	{"info",     no_argument,       0, 'i'},
-	{"run",      no_argument,       0, 'R'},
+	{"help",     	  no_argument,       0, 'h'},
+	{"part",     	  required_argument, 0, 'p'},
+	{"write",    	  required_argument, 0, 'w'},
+	{"read",     	  required_argument, 0, 'r'},
+	{"verify",   	  required_argument, 0, 'v'},
+	{"product",  	  required_argument, 0, 'P'},
+	{"serial",   	  required_argument, 0, 'S'},
+	{"info",     	  no_argument,       0, 'i'},
+	{"run",      	  no_argument,       0, 'R'},
+	{"progress",      required_argument, 0, 'b'},
 	{0, 0, 0, 0}
 };
 
@@ -89,20 +92,21 @@ void progressbar(const char *label, int value, int max)
 			printf(" ");
 		printf("]\r");
 	}
-	if (value == max)
-		printf("\n");
 	fflush(stdout);
 
 }
 
 static void bailout(int code)
 {
-/* A little feature for windoze junkies */
+	if (code == 0)
+		printf("All done, happy hacking!\n");
+	/* A little feature for windoze junkies */
 #ifdef _WIN32
 	printf("Press any key to exit...\n");
 	getchar();
 #endif
 	exit(code);
+
 }
 
 static void check_and_open(hid_device **dev, const char *product, const char *serial)
@@ -128,6 +132,23 @@ static void check_and_open(hid_device **dev, const char *product, const char *se
 		free(tmp);
 }
 
+
+const char usagemsg[] =
+"uHID bootloader tool (c) Andrew 'Necromant' Andrianov 2016\n"
+"This is free software subject to GPLv2 license.\n\n"
+"Usage: \n"
+"%s --help                      - This help message\n"
+"%s --info                      - Show info about device\n"
+"%s --part eeprom --write 1.bin - Write partition eeprom with 1.bin\n"
+"%s --part eeprom --read  1.bin - Read partition eeprom to 1.bin\n"
+"%s --run [flash]               - Execute code in partition [flash]\n"
+"                                 Optional, if supported by target MCU\n"
+"\n"
+"uHIDtool can read intel hex as well as binary. \n"
+"The filename extension should be .ihx or .hex for it to work\n"
+;
+
+
 static void usage(const char *name)
 {
 	/* Avoid showing long paths in windoze */
@@ -137,19 +158,7 @@ static void usage(const char *name)
 	else
 		nm++;
 
-	printf("uHID bootloader tool (c) Andrew 'Necromant' Andrianov 2016\n"
-	       "This is free software subject to GPLv2 license.\n\n"
-	       "Usage: \n"
-	       "%s --help                      - This help message\n"
-				 "%s --info                      - Show info about device\n"
-	       "%s --part eeprom --write 1.bin - Write partition eeprom with 1.bin\n"
-	       "%s --part eeprom --read  1.bin - Read partition eeprom to 1.bin\n"
-				 "%s --run [flash]               - Execute code in partition [flash]\n"
-				 "                                 Optional, if supported by target MCU\n"
-				 "\n"
-				 "uHIDtool can read intel hex as well as binary. \n"
-				 "The filename extension should be .ihx or .hex for it to work\n"
-	       "", nm, nm, nm, nm, nm);
+	printf(usagemsg, nm, nm, nm, nm, nm);
 }
 
 int main(int argc, char **argv)
@@ -158,7 +167,6 @@ int main(int argc, char **argv)
 	hid_device *uhid = NULL;
 	int part;
 	struct uHidDeviceInfo *inf;
-
 	const char *product = NULL;
 	const char *serial = NULL;
 	const char *filename;
@@ -172,7 +180,7 @@ int main(int argc, char **argv)
 	while (1) {
 		int option_index = 0;
 		int c;
-		c = getopt_long (argc, argv, "hp:w:r:p:v:P:S:",
+		c = getopt_long (argc, argv, "hp:w:r:p:v:P:S:b:",
 				 long_options, &option_index);
 		if (c == -1)
 			break;
@@ -202,8 +210,10 @@ int main(int argc, char **argv)
 				fprintf(stderr, "No such part");
 				bailout(1);
 			}
-			printf("Reading partition %d (%s) from %s\n", part, partname, filename);
-			bailout(uhidReadPartToFile(uhid, part, filename));
+			printf("Reading partition %d (%s) to %s\n", part, partname, filename);
+			ret = uhidReadPartToFile(uhid, part, filename);
+			printf("\n");
+			bailout(ret);
 			break;
 		case 'w':
 			filename = optarg;
@@ -232,14 +242,22 @@ int main(int argc, char **argv)
 			printf("Verifying partition %d (%s) from %s\n", part, partname, filename);
 			ret = uhidVerifyPartFromFile(uhid, part, filename);
 			if (ret ==0 )
-				printf("\n Verification completed without error\n");
+				printf("Verification completed successfully\n");
 			else
-				printf("\n Something bad during verification \n");
+				printf("Something bad during verification\n");
 			bailout(ret);
 		case 'R':
 			check_and_open(&uhid, product, serial);
 			uhidCloseAndRun(uhid, part);
 			bailout(0);
+			break;
+		case 'b':
+			if (strcmp(optarg, "bar")==0)
+				uhidProgressCb(progressbar);
+			else if (strcmp(optarg, "plain")==0)
+				uhidProgressCb(progressplain);
+			else if (strcmp(optarg, "none")==0)
+				uhidProgressCb(NULL);
 			break;
 		}
 	}
