@@ -151,7 +151,7 @@ UHID_API struct uHidDeviceInfo *uhidReadInfo(hid_device *dev)
 		goto error;
 
 	tmp[0] = REPORT_ID_INFO;
-	len = hid_get_feature_report(dev, (unsigned char *)tmp, 255);
+	len = hid_get_feature_report(dev, (unsigned char *)tmp, len);
 	if (len < 0) {
 		fprintf(stderr, "Error reading info struct: %ls\n", hid_error(dev));
 		goto error;
@@ -186,6 +186,7 @@ error:
 static int hidDevMatch(struct hid_device_info *inf,
 											struct uHidDeviceMatch *deviceMatch)
 {
+	/*
 	fprintf(stderr, "check: 0x%x:0x%x m:%ls p:%ls s:%ls\n",
 		inf->vendor_id, inf->product_id,
 		inf->manufacturer_string,
@@ -198,6 +199,7 @@ static int hidDevMatch(struct hid_device_info *inf,
 		deviceMatch->productName,
 		deviceMatch->serialNumber
 	);
+	*/
 
 
 	if (inf->vendor_id != deviceMatch->vendor)
@@ -325,19 +327,20 @@ UHID_API char *uhidReadPart(hid_device *dev, int part, int *bytes_read)
 		return NULL;
 
 	uint32_t size = inf->parts[part].size;
-	unsigned char *tmp = malloc(size);
+	uint32_t ioSize = inf->parts[part].ioRdSize;
+	unsigned char *tmp = malloc(size + 1);
 	if (!tmp)
 		goto errfreeinf;
 
 	int pos = 0;
 	while (pos < size) {
-		int len = min_t(int, size - pos, inf->parts[part].ioSize);
+    /* Workaround hidapi bug */
+	int len = ioSize;
 		tmp[pos] = REPORT_ID_PART(part);
 		len = hid_get_feature_report(dev, &tmp[pos], len);
 		if (len < 0)
 					goto errfreetmp;
-
-		pos+=len;
+		pos +=len;
 		show_progress("Reading", pos, size);
 	}
 
@@ -376,6 +379,7 @@ UHID_API int uhidWritePart(hid_device *dev, int part, const char *buf, int lengt
 		return -ENOENT;
 
 	int pageSize = inf->parts[part].pageSize;
+	int ioSize = inf->parts[part].ioWrSize + 1;
 	uint32_t size = inf->parts[part].size;
 	if (length > size) {
 		printf("WARNING: Input file buffer exceeds the target partition size\n");
@@ -387,21 +391,20 @@ UHID_API int uhidWritePart(hid_device *dev, int part, const char *buf, int lengt
 	if (size % pageSize)
 		size += pageSize - (size % pageSize);
 
-	char *destbuf = calloc(1, inf->parts[part].ioSize + 1);
+	char *destbuf = calloc(1, ioSize);
 	destbuf[0] = REPORT_ID_PART(part);
-	printf("repid %d\n", destbuf[0]);
 
 	int pos = 0;
 	while (pos < size) {
-		int len = min_t(int, size - pos, inf->parts[part].ioSize);
-		memcpy(&destbuf[1], &buf[pos], len);
+		int len = min_t(int, size - pos, ioSize-1);
+		memcpy(&destbuf[1], &buf[pos], len + 1);
 		len = hid_send_feature_report(dev, (unsigned char*) destbuf, len + 1);
 		if (len < 0) {
 			ret = -EIO;
 			break;
 		}
 
-		pos += len - 1 ;
+		pos += len - 1;
 		show_progress("Writing", pos, size);
 	}
 
@@ -431,12 +434,14 @@ UHID_API int uhidLookupPart(hid_device *dev, const char *name)
 UHID_API int uhidVerifyPart(hid_device *dev, int part, const char *buf, int len)
 {
 	int bytes;
+
 	void *pbuf = uhidReadPart(dev, part, &bytes);
 
 	if (pbuf == NULL)
 		return -1;
 
 	bytes = min_t(int, bytes, len);
+	printf("Verifying %d bytes\n", bytes);
 	return memcmp(buf, pbuf, bytes);
 }
 
@@ -588,7 +593,7 @@ UHID_API void uhidPrintInfo(struct uHidDeviceInfo *inf)
 	printf("CPU Frequency:     %.1f Mhz\n", inf->cpuFreq / 10.0);
 	for (i=0; i<inf->numParts; i++) {
 		struct uHidPartInfo *p = &inf->parts[i];
-		printf("%d. %s %d bytes (%d byte pages, %d bytes per packet)  \n",
-		       i, p->name, p->size, p->pageSize, p->ioSize);
+		printf("%d. %s %d bytes (pagesize: %d ioWrSize: %d ioRdSize: %d)  \n",
+		       i, p->name, p->size, p->pageSize, p->ioWrSize, p->ioRdSize);
 	}
 }
