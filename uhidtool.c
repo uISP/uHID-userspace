@@ -59,6 +59,10 @@ static struct option long_options[] =
 	{0, 0, 0, 0}
 };
 
+void progressplain(const char *label, int value, int max)
+{
+	printf("%s %d/%d\n", label, value, max);
+}
 void progressbar(const char *label, int value, int max)
 {
 	value = max - value;
@@ -85,7 +89,10 @@ void progressbar(const char *label, int value, int max)
 			printf(" ");
 		printf("]\r");
 	}
+	if (value == max)
+		printf("\n");
 	fflush(stdout);
+
 }
 
 static void bailout(int code)

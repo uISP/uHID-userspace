@@ -331,18 +331,20 @@ UHID_API char *uhidReadPart(hid_device *dev, int part, int *bytes_read)
 	unsigned char *tmp = malloc(size);
 	if (!tmp)
 		goto errfreeinf;
+	unsigned char *xferbuf = alloca(ioSize + 1);
 
 	int pos = 0;
 	while (pos < size) {
 		/* Account for the extra report byte */
-		int len = ioSize;
-		tmp[pos] = REPORT_ID_PART(part);
-		len = hid_get_feature_report(dev, &tmp[pos], len);
+		int len = ioSize+1;
+		xferbuf[0] = REPORT_ID_PART(part);
+		len = hid_get_feature_report(dev, xferbuf, len);
 		if (len < 0) {
 			printf("hid_get_feature_report failed: %ls \n", hid_error(dev));
 			goto errfreetmp;
 		}
-		pos +=len;
+		memcpy(&tmp[pos], &xferbuf[1], ioSize);
+		pos +=ioSize;
 		show_progress("Reading", pos, size);
 	}
 
@@ -395,7 +397,6 @@ UHID_API int uhidWritePart(hid_device *dev, int part, const char *buf, int lengt
 
 	char *destbuf = calloc(1, ioSize+1);
 
-
 	int pos = 0;
 	while (pos < size) {
 		int len = ioSize;
@@ -409,7 +410,7 @@ UHID_API int uhidWritePart(hid_device *dev, int part, const char *buf, int lengt
 			ret = -EIO;
 			break;
 		}
-		printf("%d bytes written @ %d\n", len, pos);
+
 		pos += ioSize;
 		show_progress("Writing", pos, size);
 	}
