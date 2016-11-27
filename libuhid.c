@@ -328,18 +328,18 @@ UHID_API char *uhidReadPart(hid_device *dev, int part, int *bytes_read)
 
 	uint32_t size = inf->parts[part].size;
 	uint32_t ioSize = inf->parts[part].ioSize;
-	unsigned char *tmp = malloc(size + 1);
+	unsigned char *tmp = malloc(size);
 	if (!tmp)
 		goto errfreeinf;
 
 	int pos = 0;
 	while (pos < size) {
 		/* Account for the extra report byte */
-		int len = ioSize + 1;
+		int len = ioSize;
 		tmp[pos] = REPORT_ID_PART(part);
 		len = hid_get_feature_report(dev, &tmp[pos], len);
 		if (len < 0) {
-			printf("hid_get_feature_report failed: %ls \n", hid_error(dev));	
+			printf("hid_get_feature_report failed: %ls \n", hid_error(dev));
 			goto errfreetmp;
 		}
 		pos +=len;
