@@ -21,6 +21,7 @@ enable_testing()
 
 if (WIN32)
   set(CPACK_GENERATOR "ZIP")
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -mno-ms-bitfields")
 else()
   set(CPACK_GENERATOR "TGZ")
 endif()
