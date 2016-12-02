@@ -198,7 +198,7 @@ int main(int argc, char **argv)
 		case 'i':
 			check_and_open(&uhid, product, serial);
 			inf = uhidReadInfo(uhid);
-			uhidPrintInfo(inf);
+			uhidPrintInfo(uhid, inf);
 			free(inf);
 			bailout(0);
 			break;

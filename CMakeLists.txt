@@ -59,7 +59,9 @@ endif()
 
 find_package(HidApi)
 
-set(SRCS ${SRCS} libuhid.c ${HIDAPI_SOURCES})
+set(SRCS ${SRCS}
+    libuhid.c crc32.c
+    ${HIDAPI_SOURCES})
 INCLUDE_DIRECTORIES(
     ./include/
     ${HIDAPI_INCLUDE_DIRS}

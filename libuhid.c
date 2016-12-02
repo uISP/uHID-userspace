@@ -605,12 +605,44 @@ bailout:
 	return ret;
 }
 
+UHID_API int uhidGetPartitionCRC(hid_device *dev, int part, uint32_t *crc32)
+{
 
-UHID_API void uhidPrintInfo(struct uHidDeviceInfo *inf)
+	struct uHidDeviceInfo *inf = uhidReadInfo(dev);
+	if (!inf)
+		return -1;
+	int len;
+	char *buf = uhidReadPart(dev, part, &len);
+	if (buf == NULL)
+		goto bailout;
+	*crc32 = CRC32FromBuf(0, buf, len);
+	return 0;
+
+bailout:
+	free(inf);
+	return -1;
+}
+
+
+UHID_API void uhidPrintInfo(hid_device *dev, struct uHidDeviceInfo *inf)
 {
 	int i;
+	wchar_t tmp[256];
+	printf("uHID API Version:  %d\n", inf->version);
+
+	if (dev) {
+		int ret = hid_get_product_string(dev, tmp, 256);
+			printf("Device Name:       %ls\n",
+				(ret == 0) ? tmp : L"(n/a)" );
+
+		ret = hid_get_serial_number_string(dev, tmp, 256);
+			printf("Serial Number:     %ls\n",
+				(ret == 0) ? tmp : L"(n/a)" );
+
+	}
 
 	printf("Partitions:        %d\n", inf->numParts);
+
 	printf("CPU Frequency:     %.1f Mhz\n", inf->cpuFreq / 10.0);
 	for (i=0; i<inf->numParts; i++) {
 		struct uHidPartInfo *p = &inf->parts[i];
