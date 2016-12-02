@@ -66,6 +66,9 @@ UHID_API int uhidVerifyPart(hid_device *dev, int part, const char *buf, int len)
 UHID_API int uhidVerifyPartFromFile(hid_device *dev, int part, const char *filename);
 UHID_API int uhidLookupPart(hid_device *dev, const char *name);
 
+UHID_API int uhidGetPartitionCRC(hid_device *dev, const char *part, uint32_t *crc32);
+UHID_API int uhidGetPartitionCRCById(hid_device *dev, int part, uint32_t *crc32);
+
 /* Private library stuff */
 UHID_NO_EXPORT uint32_t CRC32FromBuf(uint32_t inCrc32, const void *buf,
                                        size_t bufLen );

@@ -605,9 +605,8 @@ bailout:
 	return ret;
 }
 
-UHID_API int uhidGetPartitionCRC(hid_device *dev, int part, uint32_t *crc32)
+UHID_API int uhidGetPartitionCRCById(hid_device *dev, int part, uint32_t *crc32)
 {
-
 	struct uHidDeviceInfo *inf = uhidReadInfo(dev);
 	if (!inf)
 		return -1;
@@ -623,6 +622,13 @@ bailout:
 	return -1;
 }
 
+UHID_API int uhidGetPartitionCRC(hid_device *dev, const char *part, uint32_t *crc32)
+{
+	int pnum = uhidLookupPart(dev, part);
+	if (pnum == -1)
+		return pnum;
+	return uhidGetPartitionCRCById(dev, pnum, crc32);
+}
 
 UHID_API void uhidPrintInfo(hid_device *dev, struct uHidDeviceInfo *inf)
 {

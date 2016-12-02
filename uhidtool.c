@@ -29,6 +29,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <inttypes.h>
 #ifndef _WIN32
 #include <sys/ioctl.h>
 #endif
@@ -56,6 +57,7 @@ static struct option long_options[] =
 	{"verify",   	  required_argument, 0, 'v'},
 	{"product",  	  required_argument, 0, 'P'},
 	{"serial",   	  required_argument, 0, 'S'},
+	{"crc",   	  	  no_argument, 		 0, 'c'},
 	{"info",     	  no_argument,       0, 'i'},
 	{"run",      	  no_argument,       0, 'R'},
 	{"progress",      required_argument, 0, 'b'},
@@ -139,6 +141,7 @@ const char usagemsg[] =
 "Usage: \n"
 "%s --help                      - This help message\n"
 "%s --info                      - Show info about device\n"
+"%s --crc                       - Calculate and display partition CRC\n"
 "%s --part eeprom --write 1.bin - Write partition eeprom with 1.bin\n"
 "%s --part eeprom --read  1.bin - Read partition eeprom to 1.bin\n"
 "%s --run [flash]               - Execute code in partition [flash]\n"
@@ -158,7 +161,7 @@ static void usage(const char *name)
 	else
 		nm++;
 
-	printf(usagemsg, nm, nm, nm, nm, nm);
+	printf(usagemsg, nm, nm, nm, nm, nm, nm);
 }
 
 int main(int argc, char **argv)
@@ -172,6 +175,7 @@ int main(int argc, char **argv)
 	const char *filename;
 	uhidProgressCb(progressbar);
 
+	uint32_t crc;
 	if (argc == 1) {
 		usage(argv[0]);
 		bailout(1);
@@ -180,7 +184,7 @@ int main(int argc, char **argv)
 	while (1) {
 		int option_index = 0;
 		int c;
-		c = getopt_long (argc, argv, "hp:w:r:p:v:P:S:b:",
+		c = getopt_long (argc, argv, "hp:w:r:p:v:P:S:b:c:",
 				 long_options, &option_index);
 		if (c == -1)
 			break;
@@ -188,6 +192,14 @@ int main(int argc, char **argv)
 		case 'h':
 			usage(argv[0]);
 			bailout(1);
+			break;
+		case 'c':
+			check_and_open(&uhid, product, serial);
+			inf = uhidReadInfo(uhid);
+			uhidGetPartitionCRC(uhid, partname, &crc);
+			printf("\nPartition: %s CRC32: 0x%" PRIx32 "\n", partname, crc);
+			free(inf);
+			bailout(0);
 			break;
 		case 'p':
 			partname = optarg;
