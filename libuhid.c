@@ -649,7 +649,7 @@ UHID_API void uhidPrintInfo(hid_device *dev, struct uHidDeviceInfo *inf)
 
 	printf("Partitions:        %d\n", inf->numParts);
 
-	printf("CPU Frequency:     %.1f Mhz\n", inf->cpuFreq / 10.0);
+	printf("CPU Frequency:     %.1f Mhz\n", inf->cpuFreq / 100.0);
 	for (i=0; i<inf->numParts; i++) {
 		struct uHidPartInfo *p = &inf->parts[i];
 		printf("%d. %s %d bytes (pageSize: %d ioSize: %d)  \n",

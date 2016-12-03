@@ -45,7 +45,7 @@ struct uHidDeviceInfo {
     uint8_t       reportId;
     uint8_t       version;
 	uint8_t       numParts;
-	uint8_t       cpuFreq;
+	uint16_t       cpuFreq;
 	struct uHidPartInfo parts[];
 } __attribute__((packed));
 

@@ -1,9 +1,5 @@
 [![Build Status](https://jenkins.ncrmnt.org/job/GithubCI/job/uhid/badge/icon)](https://jenkins.ncrmnt.org/job/GithubCI/job/uhid/)
 
-# N.B.
-
-This is the placeholder README for now.
-
 # WUT?
 
 uHID is the Universal HID bootloader for various MCUs. E.g. it gets YOUR code
@@ -164,6 +160,31 @@ mingw32-make package
 so that you can just drop it to bin/ and use. The default behavior
 is to dynamically link against libuhid.
 
+# The commandline interface
+
+uHID comes with 2 commandline tools.
+- uhidtool is the raw read/write/run tool for low-level operations on a device
+- uhidpkg is a 'package'-manager that allows you to manage a local repository of images for your uHID-based devices and swap between them seamlessly  
+
+At the time of writing uhidpkg is under heavy develoment.
+
+uHID bootloader tool (c) Andrew 'Necromant' Andrianov 2016
+This is free software subject to GPLv2 license.
+
+```
+Usage:
+uhidtool --help                      - This help message
+uhidtool --info                      - Show info about device
+uhidtool --crc                       - Calculate and display partition CRC
+uhidtool --part eeprom --write 1.bin - Write partition eeprom with 1.bin
+uhidtool --part eeprom --read  1.bin - Read partition eeprom to 1.bin
+uhidtool --run [flash]               - Execute code in partition [flash]
+                                 Optional, if supported by target MCU
+
+uHIDtool can read intel hex as well as binary.
+The filename extension should be .ihx or .hex for it to work
+```
+
 # The SPEC
 
 ## Overview
@@ -216,7 +237,8 @@ If you want to use those IDs for the uHID bootloader in your device you MUST fol
 2. Product Name must match the microcontroller name. E.g. atmega8 for atmega8.
 Try to use the same name that you supply compilers and applications like gcc, avrdude, etc. This will be useful to have when running scripts
 
-3. Serial Number is basically your device name + serial number, whatever. You can use it to chose between different connected devices
+3. Serial Number is basically your device name + serial number, whatever. You can use it to chose between different connected devices and use : as a separator
+e.g. _MyDevKit:first_, _MyDevKit:second_ etc. App manager recognises : and handles it properly
 
 That said, if you decide for your project that uses uHID to go commercial, you have to:
 
@@ -224,7 +246,10 @@ That said, if you decide for your project that uses uHID to go commercial, you h
 
 2. Obtain your own vid/pid device ids
 
-3. Send me a pull request so that I can add your device ids to the app
+3. Send me a pull request so that I can add your device ids to the userspace app
+if you feel like
+
+4. Make sure you link with uHID userspace lib dynamically, so that you follow the LGPLv2 text
 
 ## The HID reports descriptor
 That said, for this to work your device MUST have proper HID report descriptors. Here's an example of HID descriptors for AVR (with 2 partitions: 'flash' and 'eeprom')
