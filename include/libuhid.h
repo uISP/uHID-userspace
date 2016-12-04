@@ -1,23 +1,26 @@
 /*
-*  uHID Universal MCU Bootloader. App loader tool.
-*  Copyright (C) 2016  Andrew 'Necromant' Andrianov
-*
-*  This file is part of uHID project. uHID is loosely (very)
-*  based on bootloadHID avr bootloader by Christian Starkjohann
-*
-*  uHID is free software: you can redistribute it and/or modify
-*  it under the terms of the GNU General Public License as published by
-*  the Free Software Foundation, either version 2 of the License, or
-*  (at your option) any later version.
-*
-*  uHID is distributed in the hope that it will be useful,
-*  but WITHOUT ANY WARRANTY; without even the implied warranty of
-*  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-*  GNU General Public License for more details.
-*
-*  You should have received a copy of the GNU General Public License
-*  along with uHID.  If not, see <http://www.gnu.org/licenses/>.
-*/
+ *  uHID Universal MCU Bootloader. Library.
+ *  Copyright (C) 2016  Andrew 'Necromant' Andrianov
+ *
+ *  This file is part of uHID project. uHID was initially based
+ *  on bootloadHID avr bootloader by Christian Starkjohann
+ *  Since no original userspace code remains, all userspace code
+ *  is now LGPLv2.
+ *
+ *  This library is free software; you can redistribute it and/or
+ *  modify it under the terms of the GNU Lesser General Public
+ *  License as published by the Free Software Foundation; either
+ *  version 2.1 of the License, or (at your option) any later version.
+
+ *  This library is distributed in the hope that it will be useful,
+ *  but WITHOUT ANY WARRANTY; without even the implied warranty of
+ *  MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the GNU
+ *  Lesser General Public License for more details.
+
+ *  You should have received a copy of the GNU Lesser General Public
+ *  License along with this library; if not, write to the Free Software
+ *  Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA  02110-1301  USA
+ */
 
 #ifndef LIBUHID_H
 #define LIBUHID_H
@@ -32,6 +35,35 @@ struct uHidDeviceMatch {
 	wchar_t *vendorName;
 	wchar_t *productName;
 	wchar_t *serialNumber;
+};
+
+
+/*
+	name: usbasp
+	version: 1.0
+	description: UsbASP avr programmer firmware for uISP
+	maintainer: Necromant <spam at ncrmnt dot org>
+	map: fw.hex->flash
+	map: fw.eep->eeprom
+ */
+
+struct uhidAppPartMap {
+	char *file;
+	char *part;
+	struct uhidAppPartMap *next;
+};
+
+struct uhidApplication {
+	char *name;
+	char *version;
+	char *description;
+	char *maintainer;
+	struct uhidAppPartMap *map;
+};
+
+struct uhidRepositoryHandle {
+	struct dirent *dir;
+	char *dirpath;
 };
 
 struct uHidPartInfo {
@@ -65,6 +97,7 @@ UHID_API int uhidReadPartToFile(hid_device *dev, int part, const char *filename)
 UHID_API int uhidVerifyPart(hid_device *dev, int part, const char *buf, int len);
 UHID_API int uhidVerifyPartFromFile(hid_device *dev, int part, const char *filename);
 UHID_API int uhidLookupPart(hid_device *dev, const char *name);
+UHID_API float uhidGetFrequencyMhz(struct uHidDeviceInfo *i);
 
 UHID_API int uhidGetPartitionCRC(hid_device *dev, const char *part, uint32_t *crc32);
 UHID_API int uhidGetPartitionCRCById(hid_device *dev, int part, uint32_t *crc32);

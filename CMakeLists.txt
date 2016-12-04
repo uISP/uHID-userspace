@@ -104,13 +104,18 @@ INSTALL(TARGETS uhidshared
 endif()
 
 ADD_EXECUTABLE(uhidtool uhidtool.c)
+ADD_EXECUTABLE(uhidpkg  uhidpkg.c)
 
 if (CMAKE_BUILD_TYPE MATCHES "StaticRelease")
   set_target_properties(uhidtool PROPERTIES
     COMPILE_FLAGS -DUHID_STATIC)
   TARGET_LINK_LIBRARIES(uhidtool uhidstatic ${HIDAPI_STATIC_LIBRARIES})
+  set_target_properties(uhidpkg PROPERTIES
+    COMPILE_FLAGS -DUHID_STATIC)
+  TARGET_LINK_LIBRARIES(uhidpkg uhidstatic ${HIDAPI_STATIC_LIBRARIES})
 else()
   TARGET_LINK_LIBRARIES(uhidtool uhidshared)
+  TARGET_LINK_LIBRARIES(uhidpkg uhidshared)
 endif()
 
 if (ENABLE_TESTS_AVR)
