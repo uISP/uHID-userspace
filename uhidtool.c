@@ -54,6 +54,7 @@ static struct option long_options[] =
 	{"part",     	  required_argument, 0, 'p'},
 	{"write",    	  required_argument, 0, 'w'},
 	{"read",     	  required_argument, 0, 'r'},
+    {"rtest",     	  no_argument, 		 0, 't'},
 	{"verify",   	  required_argument, 0, 'v'},
 	{"product",  	  required_argument, 0, 'P'},
 	{"serial",   	  required_argument, 0, 'S'},
@@ -184,7 +185,7 @@ int main(int argc, char **argv)
 	while (1) {
 		int option_index = 0;
 		int c;
-		c = getopt_long (argc, argv, "hp:w:r:p:v:P:S:b:c:",
+		c = getopt_long (argc, argv, "hp:w:r:p:v:P:S:b:c:t",
 				 long_options, &option_index);
 		if (c == -1)
 			break;
@@ -203,6 +204,21 @@ int main(int argc, char **argv)
 			break;
 		case 'p':
 			partname = optarg;
+			break;
+		case 't':
+			while(1) {
+				check_and_open(&uhid, product, serial);
+				inf = uhidReadInfo(uhid);
+				part = uhidLookupPart(uhid, partname);
+				if (part < 0) {
+					fprintf(stderr, "No such part");
+					bailout(1);
+				}
+				int blah;
+				char *shit = uhidReadPart(uhid, part, &blah);
+				if (shit)
+					free(shit);
+			}
 			break;
 		case 'P':
 			product = optarg;
