@@ -34,7 +34,7 @@
 #include <sys/ioctl.h>
 #endif
 #include <getopt.h>
-
+#include <time.h>
 
 static  int verify = 1;
 static 	const char *partname;
@@ -54,23 +54,63 @@ static struct option long_options[] =
 	{"part",     	  required_argument, 0, 'p'},
 	{"write",    	  required_argument, 0, 'w'},
 	{"read",     	  required_argument, 0, 'r'},
-    {"rtest",     	  no_argument, 		 0, 't'},
+	{"rtest",     	  no_argument, 	     0, 't'},
 	{"verify",   	  required_argument, 0, 'v'},
 	{"product",  	  required_argument, 0, 'P'},
 	{"serial",   	  required_argument, 0, 'S'},
-	{"crc",   	  	  no_argument, 		 0, 'c'},
+	{"crc",   	  no_argument, 	     0, 'c'},
 	{"info",     	  no_argument,       0, 'i'},
 	{"run",      	  no_argument,       0, 'R'},
 	{"progress",      required_argument, 0, 'b'},
 	{0, 0, 0, 0}
 };
 
+/* returns timestamp in ms */
+
+static uint64_t get_timestamp()
+{
+	struct timespec tv;	
+	clock_gettime(CLOCK_REALTIME, &tv);
+	return tv.tv_sec * 1000 + (tv.tv_nsec / 1000000UL);
+}
+
+
+static uint64_t prev_output; 
+
+/* 
+  On windows printf()'s to cmd window are VERY slow
+  This is why we throttle the output to once every 200 ms
+  or so. Otherwise, THIS will be the bottleneck. Not the mcu
+  speed, or usb speed. Lots of rage fly to micro$oft 
+  for that one. 
+*/
+
+#define PRINTF_THROTTLE 200
+
+int should_print(int value, int max)
+{
+	int ret = 0;; 
+	uint64_t cur = get_timestamp(); 
+	if ((value == max) || ((cur - prev_output) > PRINTF_THROTTLE)) { /* Always output when 100% */
+		ret = 1;
+		prev_output = cur;
+	}
+
+	return ret;
+}
+
 void progressplain(const char *label, int value, int max)
 {
+	if (!should_print(value, max))
+		return;
 	printf("%s %d/%d\n", label, value, max);
 }
+
 void progressbar(const char *label, int value, int max)
 {
+	if (!should_print(value, max))
+		return;
+	
 	value = max - value;
 	float percent = 100.0 - (float) value * 100.0 / (float) max;
 	int cols;
