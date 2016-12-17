@@ -45,7 +45,7 @@ endif()
 
 if((NOT HIDAPI_FOUND))
   message(STATUS "hidapi not found via pkg-config, trying find_library()")
-  find_library(HIDAPI NAMES hidapi hidapi-raw hidapi-libusb)
+  find_library(HIDAPI NAMES hidapi hidapi-hidraw hidapi-libusb)
   if (NOT HIDAPI)
     message(STATUS "Failed to find system installation of hidapi")
   else()
