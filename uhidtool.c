@@ -33,6 +33,10 @@
 #ifndef _WIN32
 #include <sys/ioctl.h>
 #endif
+#ifdef __MACH__
+#include <mach/clock.h>
+#include <mach/mach.h>
+#endif
 #include <getopt.h>
 #include <time.h>
 
@@ -69,28 +73,38 @@ static struct option long_options[] =
 
 static uint64_t get_timestamp()
 {
-	struct timespec tv;	
+	struct timespec tv;
+#ifdef __MACH__ // OS X does not have clock_gettime, use clock_get_time
+	clock_serv_t cclock;
+	mach_timespec_t mts;
+	host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
+	clock_get_time(cclock, &mts);
+	mach_port_deallocate(mach_task_self(), cclock);
+	tv.tv_sec = mts.tv_sec;
+	tv.tv_nsec = mts.tv_nsec;
+#else
 	clock_gettime(CLOCK_REALTIME, &tv);
+#endif
 	return tv.tv_sec * 1000 + (tv.tv_nsec / 1000000UL);
 }
 
 
-static uint64_t prev_output; 
+static uint64_t prev_output;
 
-/* 
+/*
   On windows printf()'s to cmd window are VERY slow
   This is why we throttle the output to once every 200 ms
   or so. Otherwise, THIS will be the bottleneck. Not the mcu
-  speed, or usb speed. Lots of rage fly to micro$oft 
-  for that one. 
+  speed, or usb speed. Lots of rage fly to micro$oft
+  for that one.
 */
 
 #define PRINTF_THROTTLE 200
 
 int should_print(int value, int max)
 {
-	int ret = 0;; 
-	uint64_t cur = get_timestamp(); 
+	int ret = 0;;
+	uint64_t cur = get_timestamp();
 	if ((value == max) || ((cur - prev_output) > PRINTF_THROTTLE)) { /* Always output when 100% */
 		ret = 1;
 		prev_output = cur;
@@ -110,7 +124,7 @@ void progressbar(const char *label, int value, int max)
 {
 	if (!should_print(value, max))
 		return;
-	
+
 	value = max - value;
 	float percent = 100.0 - (float) value * 100.0 / (float) max;
 	int cols;
