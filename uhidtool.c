@@ -30,13 +30,16 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <inttypes.h>
+
 #ifndef _WIN32
 #include <sys/ioctl.h>
 #endif
+
 #ifdef __MACH__
 #include <mach/clock.h>
 #include <mach/mach.h>
 #endif
+
 #include <getopt.h>
 #include <time.h>
 
@@ -62,31 +65,44 @@ static struct option long_options[] =
 	{"verify",   	  required_argument, 0, 'v'},
 	{"product",  	  required_argument, 0, 'P'},
 	{"serial",   	  required_argument, 0, 'S'},
-	{"crc",   	  no_argument, 	     0, 'c'},
+	{"crc",   	      no_argument, 	     0, 'c'},
 	{"info",     	  no_argument,       0, 'i'},
 	{"run",      	  no_argument,       0, 'R'},
 	{"progress",      required_argument, 0, 'b'},
 	{0, 0, 0, 0}
 };
 
-/* returns timestamp in ms */
 
-static uint64_t get_timestamp()
+/* TODO: Move these to 3 separate files. Being coss-platform is pain */
+#ifdef __MACH__
+static uint64_t platform_get_timestamp()
 {
-	struct timespec tv;
-#ifdef __MACH__ // OS X does not have clock_gettime, use clock_get_time
 	clock_serv_t cclock;
 	mach_timespec_t mts;
 	host_get_clock_service(mach_host_self(), CALENDAR_CLOCK, &cclock);
 	clock_get_time(cclock, &mts);
 	mach_port_deallocate(mach_task_self(), cclock);
-	tv.tv_sec = mts.tv_sec;
-	tv.tv_nsec = mts.tv_nsec;
+	return mts.tv_sec * 1000 + (mts.tv_nsec / 1000000UL);
+}
 #else
+#ifdef _WIN32
+#include <windows.h>
+static uint64_t platform_get_timestamp()
+{
+	FILETIME wintime;
+	GetSystemTimeAsFileTime(&wintime);
+	uint64_t timestamp = ((uint64_t ) wintime.dwLowDateTime) | ((uint64_t ) wintime.dwHighDateTime << 32);
+	return timestamp / 10000UL;
+}
+#else
+static uint64_t platform_get_timestamp()
+{
+	struct timespec tv;
 	clock_gettime(CLOCK_REALTIME, &tv);
-#endif
 	return tv.tv_sec * 1000 + (tv.tv_nsec / 1000000UL);
 }
+#endif
+#endif
 
 
 static uint64_t prev_output;
@@ -104,7 +120,7 @@ static uint64_t prev_output;
 int should_print(int value, int max)
 {
 	int ret = 0;;
-	uint64_t cur = get_timestamp();
+	uint64_t cur = platform_get_timestamp();
 	if ((value == max) || ((cur - prev_output) > PRINTF_THROTTLE)) { /* Always output when 100% */
 		ret = 1;
 		prev_output = cur;
