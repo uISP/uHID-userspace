@@ -69,6 +69,7 @@ static struct option long_options[] =
 	{"info",     	  no_argument,       0, 'i'},
 	{"run",      	  no_argument,       0, 'R'},
 	{"progress",      required_argument, 0, 'b'},
+    {"debug-timestamp",      	  no_argument,       0, '1'},
 	{0, 0, 0, 0}
 };
 
@@ -357,7 +358,19 @@ int main(int argc, char **argv)
 			else if (strcmp(optarg, "none")==0)
 				uhidProgressCb(NULL);
 			break;
+		/* Debugging shit */
+		case '1':
+		{
+			while (1) {
+				uint64_t s = platform_get_timestamp();
+				printf("==> %" PRIu64 "\n", s);
+				while(platform_get_timestamp() - s < 1000)
+					usleep(100);
+			}
 		}
+		}
+
+
 	}
 	bailout(0);
 }
