@@ -1,6 +1,7 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
 enable_testing()
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_SOURCE_DIR}/cmake/modules")
+find_package(PkgConfig)
 
 # Handle all the cross-compilation stuff before anything else
 if(CROSS_COMPILE MATCHES "x86_64")
@@ -168,8 +169,10 @@ CONFIGURE_FILE(
   "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.pc"
 )
 
+if (PKGCONFIG_FOUND)
 INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.pc"
        DESTINATION lib/${CMAKE_LIBRARY_PATH}/pkgconfig/)
+endif()
 
 macro(generate_clang_complete)
   message(STATUS "Generarating ${CMAKE_SOURCE_DIR}/.clang_complete")
