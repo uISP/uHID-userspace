@@ -1,6 +1,8 @@
 CMAKE_MINIMUM_REQUIRED(VERSION 2.8.8)
+enable_testing()
 set(CMAKE_MODULE_PATH "${CMAKE_MODULE_PATH};${CMAKE_SOURCE_DIR}/cmake/modules")
 
+# Handle all the cross-compilation stuff before anything else
 if(CROSS_COMPILE MATCHES "x86_64")
 elseif (CROSS_COMPILE MATCHES "x86")
     message(STATUS "Will build 32-bit binaries!")
@@ -11,13 +13,17 @@ elseif(CROSS_COMPILE)
     set(CMAKE_TOOLCHAIN_FILE "cmake/cross/LinuxCrossCompile.cmake")
 endif()
 
+# Actual project definition
 PROJECT(uhid)
 SET(PROJECT_VERSION   0.2.1)
 SET(UHID_API_VERSION  2)
 
 SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -D_GNU_SOURCE=1 -Wall")
+if (NOT CMAKE_LIBRARY_PATH)
+  set(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_ARCHITECTURE})
+  message(STATUS "No CMAKE_LIBRARY_PATH specified, assuming ${CMAKE_LIBRARY_PATH}")
+endif()
 
-enable_testing()
 
 if (WIN32)
   set(CPACK_GENERATOR "ZIP")
@@ -132,6 +138,9 @@ INSTALL(TARGETS uhidstatic ARCHIVE
         DESTINATION lib/${CMAKE_LIBRARY_PATH})
 INSTALL(TARGETS uhidtool RUNTIME
   DESTINATION bin)
+INSTALL(TARGETS uhidpkg RUNTIME
+  DESTINATION bin)
+
 
 file(GLOB UHID_HEADERS
     "${CMAKE_SOURCE_DIR}/include/*"
@@ -140,6 +149,27 @@ file(GLOB UHID_HEADERS
 INSTALL(FILES ${UHID_HEADERS} ${UHID_EXPORT_GLUE}
 DESTINATION include/${CMAKE_LIBRARY_PATH}/uhid-${PROJECT_VERSION}/)
 
+#Finally, the pkg-config file
+SET(PKG_CONFIG_LIBDIR
+    "\${prefix}/lib/\${deb_host_multiarch}"
+)
+SET(PKG_CONFIG_INCLUDEDIR
+    "\${prefix}/include/\${deb_host_multiarch}/aura-${PROJECT_VERSION}"
+)
+SET(PKG_CONFIG_LIBS
+    "-L\${libdir} -l:libaura.so.${PROJECT_VERSION}"
+)
+SET(PKG_CONFIG_CFLAGS
+    "-I\${includedir} -D_GNU_SOURCE"
+)
+
+CONFIGURE_FILE(
+  "${CMAKE_CURRENT_SOURCE_DIR}/pkg-config.pc.cmake"
+  "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.pc"
+)
+
+INSTALL(FILES "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.pc"
+       DESTINATION lib/${CMAKE_LIBRARY_PATH}/pkgconfig/)
 
 macro(generate_clang_complete)
   message(STATUS "Generarating ${CMAKE_SOURCE_DIR}/.clang_complete")
